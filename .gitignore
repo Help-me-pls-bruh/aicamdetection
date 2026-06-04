@@ -36,3 +36,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+
+# ---- Local Claude Code config ----
+.claude/
