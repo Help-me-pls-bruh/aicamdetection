@@ -52,8 +52,13 @@ OBJECT_CLASSES = {
     2:  ("car",        0.40, (255, 120, 0)),
     3:  ("motorcycle", 0.40, (255, 120, 0)),
 }
+# COCO also ships a "knife" class (id 43). We treat it as a weapon out-of-the-box
+# so a kitchen/chef knife is detected even before any custom model is trained.
+COCO_KNIFE_CLASS_ID = 43
+COCO_KNIFE_CONF = 0.35
+
 OBJECT_CLASS_IDS = list(OBJECT_CLASSES.keys())
-DETECT_CLASS_IDS = [PERSON_CLASS_ID] + OBJECT_CLASS_IDS
+DETECT_CLASS_IDS = [PERSON_CLASS_ID] + OBJECT_CLASS_IDS + [COCO_KNIFE_CLASS_ID]
 
 # Detection thresholds.
 # GLOBAL_CONF is a low gate so small objects survive YOLO's first pass; the
@@ -248,12 +253,50 @@ class RealtimeDetector:
         if self.frame_count % 5 == 0:
             events = self._analyze_behaviors()
 
-        # Weapon detection (only if a trained knife model is present).
-        if self.knife_model is not None and self.frame_count % KNIFE_CHECK_INTERVAL == 0:
-            events.extend(self._detect_knives(frame))
+        # Weapon detection.
+        # If a fine-tuned knife model is present, use it (most accurate).
+        # Otherwise fall back to COCO's built-in "knife" class from the base model.
+        if self.frame_count % KNIFE_CHECK_INTERVAL == 0:
+            if self.knife_model is not None:
+                events.extend(self._detect_knives(frame))
+            else:
+                events.extend(self._coco_weapon_events(results))
 
         annotated = self._draw_annotations(frame)
         return annotated, events
+
+    def _coco_weapon_events(self, results):
+        """
+        Extract knives from the base COCO model (class 43) and treat them as
+        weapons — works with no custom training. Emits WEAPON_DETECTED events
+        and fills knife_detections so they're drawn as red boxes.
+        """
+        events = []
+        self.knife_detections = []
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        boxes = getattr(results, "boxes", None)
+        if boxes is None:
+            return events
+        for box in boxes:
+            cid = int(box.cls[0]) if box.cls is not None else -1
+            if cid != COCO_KNIFE_CLASS_ID:
+                continue
+            conf = float(box.conf[0]) if box.conf is not None else 0.0
+            if conf < COCO_KNIFE_CONF:
+                continue
+            bbox = box.xyxy[0].cpu().numpy()
+            self.knife_detections.append({"bbox": bbox, "conf": round(conf, 2)})
+            events.append({
+                "event_type": "WEAPON_DETECTED",
+                "confidence_score": round(conf, 2),
+                "latitude": self.camera_location["lat"],
+                "longitude": self.camera_location["lon"],
+                "timestamp": now_str,
+                "source": "CCTV_AI",
+                "details": f"Knife detected (confidence {conf:.0%})",
+            })
+        self.detected_events.extend(events)
+        return events
 
     def _detect_knives(self, frame):
         """Run the fine-tuned knife model; emit WEAPON_DETECTED events."""
