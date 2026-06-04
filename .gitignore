@@ -1,0 +1,38 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ---- Virtual environment (huge - never commit) ----
+venv/
+.venv/
+env/
+
+# ---- Database (regenerates on first run) ----
+*.db
+*.db-wal
+*.db-shm
+database/sentinelai.db
+
+# ---- Model weights (large; download/train separately) ----
+*.pt
+*.onnx
+*.engine
+models/*.pt
+
+# ---- Training artifacts ----
+training/runs/
+training/knife_dataset/
+
+# ---- Datasets / media ----
+wanted_faces/*.jpg
+wanted_faces/*.jpeg
+wanted_faces/*.png
+
+# ---- OS / IDE ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

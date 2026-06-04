@@ -1,0 +1,36 @@
+# ============================================================
+#  SentinelAI - Python dependencies
+#  Install everything:   pip install -r requirements.txt
+# ============================================================
+
+# ---- CORE: backend + dashboard + all the math (REQUIRED) ----
+flask>=3.0.0
+flask-cors>=4.0.0
+streamlit>=1.28.0
+plotly>=5.18.0
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+requests>=2.31.0
+Pillow>=10.0.0
+
+# ---- ANALYTICS: hotspot clustering + crime forecasting (REQUIRED) ----
+scikit-learn>=1.3.0
+hdbscan>=0.8.33          # HDBSCAN spatial hotspot clustering
+statsmodels>=0.14.0      # SARIMA temporal crime forecasting
+
+# ---- SPATIAL: Uber H3 patrol dispatch (REQUIRED) ----
+h3>=4.0.0                # hexagonal indexing + patrol recommendation
+
+# ---- CAMERA / AI VISION (only needed for live CCTV) ----
+# Skip these if you only want the dashboard + analytics + patrol demo.
+# ultralytics automatically pulls in torch + torchvision (the YOLO engine).
+opencv-python>=4.8.0     # video capture / RTSP
+ultralytics>=8.0.0       # YOLOv8/YOLO11 object detection (person, bags, vehicles, knife)
+supervision>=0.16.0      # ByteTrack tracking
+deepface                 # wanted-face matching (pulls in TensorFlow - large)
+tf-keras                 # required by recent deepface
+
+# ---- KNIFE TRAINING (only needed to TRAIN the knife model) ----
+# Not needed just to run the app. Used by training/ scripts + Colab guide.
+roboflow                 # download a public knife dataset for fine-tuning
