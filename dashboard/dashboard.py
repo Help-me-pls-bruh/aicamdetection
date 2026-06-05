@@ -7,15 +7,27 @@ Displays: Live risk map, crime stats, alerts, CCTV feed, historical analysis.
 import sys
 import os
 import time
+import base64
+import random
 import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+from backend.h3_utils import latlng_to_cell, cell_to_boundary
+
 import streamlit as st
+
+# How often the live map + events refresh (seconds). Lower = faster changes.
+REFRESH_SECS = 4
+
+# KL area covered by the hexagon grid (tight around the city so it fills the view).
+KL_LAT_RANGE = (3.085, 3.215)
+KL_LON_RANGE = (101.605, 101.770)
+HEX_RES = 8  # ~0.74 km^2 hexagons (same scale as Uber H3 city tiling)
 
 st.set_page_config(
     page_title="SentinelAI - Crime Prevention",
@@ -31,6 +43,13 @@ RISK_COLORS = {
     "MEDIUM": "#eab308",
     "HIGH": "#f97316",
     "CRITICAL": "#ef4444",
+}
+
+# Live-map demo levels (3 clear tiers). HIGH is red and intentionally rare.
+DEMO_LEVELS = {
+    "SAFE":   {"color": "#1e9e57", "z": 0.08},
+    "MEDIUM": {"color": "#f5a524", "z": 0.55},
+    "HIGH":   {"color": "#e11d48", "z": 0.92},
 }
 
 st.markdown("""
@@ -138,6 +157,56 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+def _inject_kino_and_theme():
+    """Load the KINO display font + branded theme styles."""
+    font_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "assets", "Kino-Regular.ttf"
+    )
+    face = ""
+    if os.path.exists(font_path):
+        with open(font_path, "rb") as fh:
+            b64 = base64.b64encode(fh.read()).decode()
+        face = ("@font-face{font-family:'Kino';src:url(data:font/ttf;base64,__B64__)"
+                " format('truetype');font-display:swap;}").replace("__B64__", b64)
+
+    css = face + """
+    h1, h2, h3, .brand-title { font-family:'Kino', Georgia, serif !important;
+        letter-spacing:0.5px; }
+    .brand-bar { background:linear-gradient(120deg,#0b1f3a 0%,#13315c 60%,#1d4e89 100%);
+        border-radius:16px; padding:1.1rem 1.6rem; margin-bottom:0.4rem;
+        display:flex; align-items:center; justify-content:space-between;
+        box-shadow:0 6px 20px rgba(11,31,58,0.25); }
+    .brand-title { color:#ffffff !important; font-size:3rem !important; margin:0;
+        line-height:1.05; }
+    .brand-sub { color:#9ec1ff !important; font-size:0.95rem !important;
+        letter-spacing:3px; text-transform:uppercase; margin-top:0.3rem; }
+    .brand-right { text-align:right; color:#cfe0ff !important;
+        font-size:0.95rem !important; line-height:1.6; }
+    .live-dot { display:inline-block; width:11px; height:11px; border-radius:50%;
+        background:#e11d48; margin-right:7px;
+        box-shadow:0 0 0 0 rgba(225,29,72,0.7); animation:pulse 1.4s infinite; }
+    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(225,29,72,0.6);}
+        70%{box-shadow:0 0 0 12px rgba(225,29,72,0);}
+        100%{box-shadow:0 0 0 0 rgba(225,29,72,0);} }
+    .hex-legend { display:flex; gap:1.2rem; align-items:center; margin:0.4rem 0 0.2rem 0;
+        font-size:0.95rem !important; font-weight:600; color:#334155; }
+    .sw { display:inline-block; width:15px; height:15px; border-radius:4px;
+        margin-right:6px; vertical-align:middle; }
+    .ev-card { border-radius:12px; padding:0.7rem 1rem; margin-bottom:0.55rem;
+        background:#ffffff; border-left:6px solid #94a3b8;
+        box-shadow:0 2px 8px rgba(15,23,42,0.06); }
+    .ev-high { border-left-color:#e11d48; background:#fff1f4; }
+    .ev-med  { border-left-color:#f5a524; background:#fffaf0; }
+    .ev-type { font-weight:800; font-size:1.05rem !important; color:#0f172a; }
+    .ev-meta { font-size:0.85rem !important; color:#64748b; }
+    .ev-score { float:right; font-weight:800; font-size:1.2rem !important; }
+    """
+    st.markdown("<style>" + css + "</style>", unsafe_allow_html=True)
+
+
+_inject_kino_and_theme()
+
+
 def api_get(endpoint):
     try:
         resp = requests.get(f"{API_BASE}{endpoint}", timeout=5)
@@ -155,20 +224,19 @@ def api_post(endpoint, data=None):
 
 
 def render_header():
-    col1, col2, col3 = st.columns([3, 4, 3])
-    with col1:
-        st.markdown("### SentinelAI")
-        st.caption("AI Crime Prevention System")
-    with col2:
-        status = api_get("/status")
-        if status:
-            st.success(f"System Online | {status.get('zones_loaded', 0)} zones active")
-        else:
-            st.error("API Offline - Start the backend first: python -m backend.app")
-    with col3:
-        st.markdown(f"**{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**")
-        if st.button("Refresh", key="refresh_btn"):
-            st.rerun()
+    status = api_get("/status")
+    if status:
+        right = (f'<span class="live-dot"></span>SYSTEM ONLINE &middot; '
+                 f'{status.get("zones_loaded", 0):,} zones')
+    else:
+        right = 'API OFFLINE — run <code>python run.py</code>'
+    st.markdown(
+        '<div class="brand-bar">'
+        '<div><div class="brand-title">SENTINEL AI</div>'
+        '<div class="brand-sub">Crime Prevention &amp; Response Platform</div></div>'
+        f'<div class="brand-right">{right}<br>'
+        f'{datetime.now().strftime("%a %d %b %Y &middot; %H:%M:%S")}</div>'
+        '</div>', unsafe_allow_html=True)
 
 
 def render_metrics():
@@ -205,59 +273,144 @@ def render_metrics():
         st.metric("Model Accuracy", f"{accuracy:.0%}")
 
 
-def render_risk_map():
-    st.subheader("Live Risk Map")
+@st.cache_data(show_spinner=False)
+def get_kl_hex_grid(res=HEX_RES):
+    """
+    Build the full set of H3 hexagons that tile the KL area (cached once).
+    Returns {h3_index: [[lat,lng], ...] boundary}. The sampling step is smaller
+    than a hexagon, so every cell in the area is captured with no gaps — the
+    result tiles the whole map exactly like Uber's H3 grid.
+    """
+    cells = {}
+    step = 0.0035
+    lat = KL_LAT_RANGE[0]
+    while lat <= KL_LAT_RANGE[1]:
+        lon = KL_LON_RANGE[0]
+        while lon <= KL_LON_RANGE[1]:
+            c = latlng_to_cell(lat, lon, res)
+            if c and c not in cells:
+                b = cell_to_boundary(c)
+                if b:
+                    cells[c] = b
+            lon += step
+        lat += step
+    return cells
 
-    zones = api_get("/zones/risk")
-    if not zones:
-        st.info("No zone risk data available yet. Wait for risk computation cycle.")
+
+def assign_demo_risk(cell_ids):
+    """
+    Fast random scoring with a CONTROLLED distribution so it looks realistic:
+      - 2-4 HIGH zones (red, rare)
+      - 3-5 MEDIUM zones (amber)
+      - everything else SAFE (green)
+    Re-rolled on every refresh, so the map changes continuously.
+    """
+    cells = list(cell_ids)
+    random.shuffle(cells)
+    levels = {}
+    n_high = random.randint(2, 4)
+    n_med = random.randint(3, 5)
+    for c in cells[:n_high]:
+        levels[c] = "HIGH"
+    for c in cells[n_high:n_high + n_med]:
+        levels[c] = "MEDIUM"
+    for c in cells[n_high + n_med:]:
+        levels[c] = "SAFE"
+    return levels, n_high, n_med
+
+
+def _hex_geojson(grid, cell_ids):
+    feats = []
+    for c in cell_ids:
+        ring = [[p[1], p[0]] for p in grid[c]]  # [lat,lng] -> [lng,lat]
+        if len(ring) < 3:
+            continue
+        ring.append(ring[0])
+        feats.append({"type": "Feature", "id": c,
+                      "geometry": {"type": "Polygon", "coordinates": [ring]}})
+    return {"type": "FeatureCollection", "features": feats}
+
+
+EVENT_TYPES = [
+    ("BURGLARY", "\U0001F3E0"), ("THEFT / SNATCH", "\U0001F45C"),
+    ("ROBBERY", "\U0001F4B0"), ("SUSPICIOUS RUNNING", "\U0001F3C3"),
+    ("ASSAULT", "⚠️"), ("VEHICLE THEFT", "\U0001F697"),
+    ("LOITERING", "\U0001F6B6"), ("VANDALISM", "\U0001FAA7"),
+]
+KL_PLACES = ["Bukit Bintang", "Chow Kit", "Petaling Street", "KL Sentral",
+             "Bangsar", "Ampang", "Setapak", "Cheras", "Wangsa Maju", "Kepong"]
+
+
+def gen_demo_events(levels):
+    """Generate 4-8 live incidents anchored on the HIGH/MEDIUM hexes."""
+    has_hot = any(l in ("HIGH", "MEDIUM") for l in levels.values())
+    events = []
+    for _ in range(random.randint(4, 8)):
+        etype, icon = random.choice(EVENT_TYPES)
+        lvl = "HIGH" if (has_hot and random.random() < 0.4) else "MEDIUM"
+        score = random.randint(78, 96) if lvl == "HIGH" else random.randint(42, 64)
+        events.append({
+            "type": etype, "icon": icon, "level": lvl, "score": score,
+            "place": random.choice(KL_PLACES), "ago": random.randint(1, 180),
+        })
+    events.sort(key=lambda e: -e["score"])
+    return events
+
+
+@st.fragment(run_every=REFRESH_SECS)
+def render_live_map_events():
+    """The live hexagon risk map + incident feed. Auto-refreshes on its own."""
+    grid = get_kl_hex_grid()
+    if not grid:
+        st.info("Building hex grid...")
         return
+    levels, n_high, n_med = assign_demo_risk(list(grid.keys()))
 
-    df = pd.DataFrame(zones)
-    if df.empty:
-        st.info("No zone data.")
-        return
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Hexagons Monitored", f"{len(grid):,}")
+    c2.metric("High-Risk Zones", n_high)
+    c3.metric("Medium-Risk Zones", n_med)
+    c4.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
 
-    df = df[df["r_zone"] > 0.01]
-    if df.empty:
-        st.info("All zones are safe (risk < 1%).")
-        return
+    map_col, ev_col = st.columns([2, 1])
 
-    df["risk_pct"] = (df["r_zone"] * 100).round(1)
-    df["color"] = df["risk_level"].map(RISK_COLORS)
-    df["size"] = df["r_zone"] * 50 + 15
+    with map_col:
+        st.markdown(
+            '<div class="hex-legend">'
+            '<span><span class="sw" style="background:#1e9e57"></span>Safe</span>'
+            '<span><span class="sw" style="background:#f5a524"></span>Medium</span>'
+            '<span><span class="sw" style="background:#e11d48"></span>High Risk</span>'
+            '</div>', unsafe_allow_html=True)
+        cell_ids = list(grid.keys())
+        z = [DEMO_LEVELS[levels[c]]["z"] for c in cell_ids]
+        colorscale = [[0.0, "#1e9e57"], [0.25, "#3fb16b"], [0.44, "#f5a524"],
+                      [0.6, "#f08a1d"], [0.8, "#e11d48"], [1.0, "#b00d36"]]
+        fig = go.Figure(go.Choroplethmapbox(
+            geojson=_hex_geojson(grid, cell_ids),
+            locations=cell_ids, z=z, featureidkey="id",
+            colorscale=colorscale, zmin=0, zmax=1,
+            marker_opacity=0.55, marker_line_width=0.6,
+            marker_line_color="#5b6b85", showscale=False, hoverinfo="skip",
+        ))
+        fig.update_layout(
+            mapbox_style="carto-positron", mapbox_zoom=12.2,
+            mapbox_center={"lat": 3.150, "lon": 101.690},
+            height=600, margin=dict(l=0, r=0, t=0, b=0),
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-    fig = px.scatter_mapbox(
-        df,
-        lat="center_lat",
-        lon="center_lon",
-        color="risk_level",
-        size="size",
-        size_max=35,
-        color_discrete_map=RISK_COLORS,
-        hover_name="zone_id",
-        hover_data={
-            "risk_pct": True,
-            "p_base": ":.2%",
-            "p_realtime": ":.2%",
-            "risk_level": True,
-            "size": False,
-            "center_lat": False,
-            "center_lon": False,
-        },
-        labels={"risk_pct": "Risk %", "p_base": "Historical Risk", "p_realtime": "Real-Time Risk"},
-        mapbox_style="carto-positron",
-        center={"lat": 3.1390, "lon": 101.6869},
-        zoom=12,
-        height=600,
-        title="",
-    )
-    fig.update_layout(
-        margin=dict(l=0, r=0, t=0, b=0),
-        legend=dict(font=dict(size=16), itemsizing="constant"),
-        font=dict(size=14),
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    with ev_col:
+        st.markdown('<span class="live-dot"></span> **LIVE INCIDENT FEED**',
+                    unsafe_allow_html=True)
+        for e in gen_demo_events(levels):
+            cls = "ev-high" if e["level"] == "HIGH" else "ev-med"
+            color = "#e11d48" if e["level"] == "HIGH" else "#d97706"
+            st.markdown(
+                f'<div class="ev-card {cls}">'
+                f'<span class="ev-score" style="color:{color}">{e["score"]}%</span>'
+                f'<div class="ev-type">{e["icon"]} {e["type"]}</div>'
+                f'<div class="ev-meta">{e["place"]} &middot; {e["ago"]}s ago '
+                f'&middot; {e["level"]}</div></div>', unsafe_allow_html=True)
 
 
 def render_alerts_panel():
@@ -821,8 +974,7 @@ def main():
     ])
 
     with tab1:
-        render_risk_map()
-        render_realtime_events()
+        render_live_map_events()
 
     with tab2:
         render_patrol_dispatch()
