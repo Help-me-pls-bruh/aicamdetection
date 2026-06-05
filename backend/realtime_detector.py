@@ -70,14 +70,21 @@ PERSON_CONF = 0.50
 IOU_NMS = 0.45
 IMG_SIZE = int(os.environ.get("SENTINEL_YOLO_IMGSZ", "640"))  # 640 default; 960 = better small-object accuracy, slower
 
-# ---- Knife / weapon detection (Phase 2) ----
+# ---- Custom fine-tuned model (Phase 2) ----
 # Drop a fine-tuned model at models/knife.pt and it activates automatically.
-# Emits the existing WEAPON_DETECTED event (reliability weight 0.9).
+# It may be SINGLE-class (just knife) or MULTI-class (e.g. knife, bag, wallet).
+# The model's own class names are used. Classes whose name is a weapon
+# (knife/gun/...) fire the WEAPON_DETECTED event + red box; every other class
+# (bag, wallet, ...) is shown as a normal named object.
 KNIFE_MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "models", "knife.pt"
 )
 KNIFE_CONF = float(os.environ.get("SENTINEL_KNIFE_CONF", "0.45"))
-KNIFE_CHECK_INTERVAL = 3  # run the knife model every N frames (perf)
+KNIFE_CHECK_INTERVAL = 3  # run the custom model every N frames (perf)
+
+# Class names (from the custom model) that count as weapons.
+WEAPON_LABELS = {"knife", "gun", "pistol", "rifle", "firearm", "weapon", "machete"}
+CUSTOM_OBJECT_COLOR = (0, 220, 120)  # green-ish box for custom non-weapon items
 
 SPEED_RUNNING_THRESHOLD = 60
 SPEED_CHASING_THRESHOLD = 50
@@ -163,24 +170,26 @@ class RealtimeDetector:
         self.device = "cpu"
         self.object_detections = []   # latest non-person objects (bags, cars, ...)
         self.object_counts = {}       # label -> count for the current frame
-        self.knife_model = None
-        self.knife_detections = []    # latest knife boxes for drawing
+        self.custom_model = None      # optional fine-tuned model (knife/bag/wallet...)
+        self.knife_detections = []    # latest weapon boxes for drawing (red)
 
         if HAS_YOLO:
             model_name = self._select_model()
             self.model = YOLO(model_name)
             print(f"[DETECTOR] YOLO model '{model_name}' loaded on {self.device}.")
 
-            # Optional fine-tuned knife model (activates only if the file exists).
+            # Optional fine-tuned custom model (activates only if the file exists).
             if os.path.exists(KNIFE_MODEL_PATH):
                 try:
-                    self.knife_model = YOLO(KNIFE_MODEL_PATH)
-                    print(f"[DETECTOR] Knife model loaded from {KNIFE_MODEL_PATH}.")
+                    self.custom_model = YOLO(KNIFE_MODEL_PATH)
+                    classes = list(self.custom_model.names.values())
+                    print(f"[DETECTOR] Custom model loaded from {KNIFE_MODEL_PATH}. "
+                          f"Classes: {classes}")
                 except Exception as e:
-                    print(f"[DETECTOR] Failed to load knife model: {e}")
+                    print(f"[DETECTOR] Failed to load custom model: {e}")
             else:
-                print("[DETECTOR] No knife model yet (models/knife.pt). "
-                      "Weapon detection inactive until trained.")
+                print("[DETECTOR] No custom model yet (models/knife.pt). "
+                      "Using base COCO detection only.")
 
         if HAS_SUPERVISION:
             self.tracker = sv.ByteTrack(
@@ -253,12 +262,13 @@ class RealtimeDetector:
         if self.frame_count % 5 == 0:
             events = self._analyze_behaviors()
 
-        # Weapon detection.
-        # If a fine-tuned knife model is present, use it (most accurate).
-        # Otherwise fall back to COCO's built-in "knife" class from the base model.
+        # Custom model + weapon detection.
+        # If a fine-tuned custom model is present, use it (knife->weapon,
+        # other classes like bag/wallet -> named objects). Otherwise fall back
+        # to COCO's built-in "knife" class from the base model.
         if self.frame_count % KNIFE_CHECK_INTERVAL == 0:
-            if self.knife_model is not None:
-                events.extend(self._detect_knives(frame))
+            if self.custom_model is not None:
+                events.extend(self._detect_custom(frame))
             else:
                 events.extend(self._coco_weapon_events(results))
 
@@ -298,38 +308,57 @@ class RealtimeDetector:
         self.detected_events.extend(events)
         return events
 
-    def _detect_knives(self, frame):
-        """Run the fine-tuned knife model; emit WEAPON_DETECTED events."""
+    def _detect_custom(self, frame):
+        """
+        Run the fine-tuned custom model. Uses the model's own class names:
+          - weapon classes (knife/gun/...) -> WEAPON_DETECTED event + red box
+          - any other class (bag, wallet...) -> named object (drawn + counted)
+        """
         events = []
         self.knife_detections = []
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
-            kr = self.knife_model(
+            cr = self.custom_model(
                 frame, verbose=False, conf=KNIFE_CONF,
                 imgsz=IMG_SIZE, device=self.device,
             )[0]
         except Exception:
             return events
 
-        boxes = getattr(kr, "boxes", None)
+        boxes = getattr(cr, "boxes", None)
         if boxes is None:
             return events
 
+        names = self.custom_model.names  # {class_id: name}
         for box in boxes:
             conf = float(box.conf[0]) if box.conf is not None else 0.0
             if conf < KNIFE_CONF:
                 continue
+            cid = int(box.cls[0]) if box.cls is not None else -1
+            label = str(names.get(cid, "object")).lower()
             bbox = box.xyxy[0].cpu().numpy()
-            self.knife_detections.append({"bbox": bbox, "conf": round(conf, 2)})
-            events.append({
-                "event_type": "WEAPON_DETECTED",
-                "confidence_score": round(conf, 2),
-                "latitude": self.camera_location["lat"],
-                "longitude": self.camera_location["lon"],
-                "timestamp": now_str,
-                "source": "CCTV_AI",
-                "details": f"Knife/weapon detected (confidence {conf:.0%})",
-            })
+
+            if label in WEAPON_LABELS:
+                self.knife_detections.append(
+                    {"bbox": bbox, "conf": round(conf, 2), "label": label.upper()}
+                )
+                events.append({
+                    "event_type": "WEAPON_DETECTED",
+                    "confidence_score": round(conf, 2),
+                    "latitude": self.camera_location["lat"],
+                    "longitude": self.camera_location["lon"],
+                    "timestamp": now_str,
+                    "source": "CCTV_AI",
+                    "details": f"{label.title()} detected (confidence {conf:.0%})",
+                })
+            else:
+                # Named custom object (e.g. bag, wallet) — append to the object
+                # lists already populated this frame by the base COCO model.
+                self.object_detections.append({
+                    "label": label, "conf": round(conf, 2),
+                    "bbox": bbox, "color": CUSTOM_OBJECT_COLOR,
+                })
+                self.object_counts[label] = self.object_counts.get(label, 0) + 1
 
         self.detected_events.extend(events)
         return events
@@ -576,8 +605,9 @@ class RealtimeDetector:
                 x1, y1, x2, y2 = [int(v) for v in k["bbox"]]
             except (ValueError, TypeError):
                 continue
+            label = k.get("label", "KNIFE")
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
-            cv2.putText(frame, f"KNIFE {k['conf']:.0%}", (x1, max(y1 - 8, 12)),
+            cv2.putText(frame, f"{label} {k['conf']:.0%}", (x1, max(y1 - 8, 12)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         return frame
 
