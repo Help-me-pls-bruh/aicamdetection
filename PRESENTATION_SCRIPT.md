@@ -10,6 +10,99 @@
 
 ---
 
+# ⭐ THE 6-MINUTE COMPETITION SCRIPT (use this on the day)
+
+**Format:** 6 min talk + 6 min Q&A. **Rubric:** Problem 30% · **AI & System Design
+40% (most time)** · Prototype/Feasibility/Impact 30%.
+
+**Rubric → script map (so a judge ticking the sheet sees every box):**
+| Criterion | Weight | Covered in |
+|---|---|---|
+| Problem Understanding & Relevance | 30% | §1 |
+| **AI-Enabled Solution & System Design** | **40%** | **§2 (longest)** |
+| Prototype, Feasibility & Impact | 30% | §3 |
+
+*~820 words. Practice with a timer. Speak ~150 wpm. Demo cues in **[SHOW: …]**.*
+
+---
+
+### §1 — PROBLEM  ·  ~0:50  ·  *[Criterion 1 — 30%]*
+"Judges — a snatch-theft happens on Jalan Alor on a Saturday night. Someone calls
+the police, struggles to describe the spot, an officer is found and sent — and
+minutes later, the suspect is gone. KL logged **over 2,000** snatch-theft and
+robbery reports in 2019 alone; **about 77% of break-ins happen at night**, clustered
+in the same few districts — Bukit Bintang, Chow Kit, KL Sentral.
+
+The city is full of cameras — but they only **record**. Police logs, CCTV and
+transit data sit in **separate silos**, so nobody sees the full picture in real
+time, and patrols are spread evenly while hotspots stay understaffed. Policing is
+**reactive** — it responds *after* the crime. We are **Technosapiens**, and
+**SentinelAI** makes it **proactive**."
+
+### §2 — AI SOLUTION & SYSTEM DESIGN  ·  ~2:30  ·  *[Criterion 2 — 40%, the core]*
+"SentinelAI fuses three intelligence streams into **one risk score per zone**, then
+acts on it — built as **five AI models, A to E**. Here is the whole system design
+in one breath: **the camera hardware runs the AI at the edge and sends only
+metadata over the network to our software brain — the fusion engine and database —
+which serves two users: police on a dashboard and citizens on an app.** AI,
+hardware, software, users — one closed loop."
+**[SHOW: the live hexagon risk map.]**
+
+"**It SEES** — Model C: a YOLO model detects people, bags, vehicles and weapons;
+ByteTrack gives each person a tracked ID; and we classify five behaviours —
+**running, fighting, crowd surge, loitering, and chasing.**
+
+**It THINKS** — Models A, B and D. **HDBSCAN** finds the real crime **hotspots** —
+we chose it over K-means because crime is noisy and irregular, and it filters out
+random one-offs. **SARIMA** learns the **time** rhythm — Friday nights, festive
+spikes. That's our historical baseline. Then our **core innovation — the
+probabilistic fusion engine.** Watch this:"
+**[SHOW: the formula / 18%→79% on the System Info tab.]**
+"A person running alone scores just **18 percent** — we ignore it. But running,
+**plus** being chased, **plus** an abandoned bag — the *same* formula gives
+**79 percent**: CRITICAL. Weak signals fuse into one alarm police can trust — that
+is how we kill false alarms. And every signal **decays at its own rate** — a jogger
+fades in a minute, a detected weapon stays weighted for five — so no zone is ever
+**permanently red**.
+
+**It ACTS** — we tile KL into **Uber H3 hexagons**. Unlike squares, every hexagon
+has **six equidistant neighbours**, so 'nearest patrol' is geometrically fair. A
+high-risk zone is instantly matched to the **nearest unit, with distance and ETA** —
+and a CRITICAL alert dispatches **automatically.**
+
+**And it LEARNS** — Model E: officers tap *true* or *false* on each alert, and the
+models retrain — so it gets sharper every single day."
+
+### §3 — PROTOTYPE, FEASIBILITY & IMPACT  ·  ~1:50  ·  *[Criterion 3 — 30%]*
+**[SHOW: Patrol Dispatch → 'Recommend Patrol' → the ACTIVE INCIDENT card.]**
+"And this is **live, not a mock-up.** The detection, HDBSCAN, SARIMA, the fusion
+maths, the per-event decay, the H3 dispatch, the database and this dashboard are
+**all real and running.** What we **simulate** is patrol GPS and some demo data —
+because we don't have a police fleet.
+
+It's **feasible because it's additive** — it retrofits onto **existing CCTV**, reads
+**existing police records**, and sends **metadata, not video** — about **95% less
+bandwidth**, privacy-compliant by design. Scaling city-wide means changing the data
+source, **not the engine.**
+
+Our impact targets — scaled conservatively from real deployments like PredPol and
+ShotSpotter — are **15 to 20% less crime** in targeted categories, **40% faster
+response**, and **under 30 seconds** from detection to dispatch. That directly
+serves **KL City Plan 2040's** street-crime KPI."
+
+### §4 — CLOSE  ·  ~0:25
+"So SentinelAI **sees** crime forming, **thinks** in explainable probability,
+**acts** by sending the nearest help, and **learns** from every outcome. It isn't a
+camera that detects a person — it's a **self-improving crime-prevention platform**,
+and we built its working core, as students, in three months. **Smart city, safe
+city.** Thank you — we're ready for your questions."
+
+> **If you're over time:** cut the §1 stats to one line and the §3 impact list to
+> one number. **Never cut the 18%→79% moment** — that's your highest-scoring 15
+> seconds.
+
+---
+
 # PART 1 — Essential Parts (the full technical breakdown)
 
 Our system has **three layers — it SEES, it THINKS, and it ACTS** — wrapped in a
@@ -342,32 +435,76 @@ questions."
 
 ---
 
-# PART 3 — Likely judge questions + sharp answers
+# PART 3 — Q&A BANK (you have 6 minutes — be ready)
 
-- **"Is the patrol data real?"** → No — patrol GPS is simulated for the prototype;
-  everything else (detection, HDBSCAN, SARIMA, fusion, decay, H3, dispatch) is
-  real. Going live = swap the data source, not rewrite the system.
+**How to answer:** 20–30 s each. **Lead with the direct answer**, then one reason,
+then stop. If you don't know, say what you'd do to find out — never bluff. Decide
+**now who answers what** (e.g., one person on AI/maths, one on system/feasibility).
+
+### A. Problem & relevance (Criterion 1)
+- **"Is this really a Malaysian problem?"** → Yes — KL property crime is high and
+  night-clustered (2,000+ snatch-thefts in 2019; ~77% of break-ins at night), and
+  it maps directly to KL City Plan 2040's street-crime KPI.
+- **"Who exactly benefits?"** → Three groups: **police** (proactive patrol
+  allocation), **citizens** (a Waze-style safety app, especially women at night),
+  and **city government** (auditable data for planning).
+
+### B. AI & system design (Criterion 2 — expect the most here)
 - **"Why HDBSCAN over K-means?"** → Crime is irregular and noisy. K-means forces
-  round, equal clusters and is distorted by outliers; HDBSCAN handles arbitrary
-  shapes/densities and **filters noise**, so one random incident can't create a
-  fake hotspot.
-- **"Why hexagons, not squares?"** → Equal areas + 6 equidistant neighbours →
-  fair, consistent nearest-patrol and coverage maths. Same system Uber uses.
-- **"How is this different from normal CCTV?"** → CCTV records; we **classify**
-  what/who, **score** how dangerous by fusing weak signals probabilistically, and
-  **act** with a patrol recommendation — in real time, not on next-day review.
-- **"How do you avoid false alarms?"** → Two ways: probabilistic fusion (single
-  events stay low) and **per-event decay** (alerts auto-resolve), plus the officer
-  feedback loop that penalises bad signals.
-- **"What about privacy?"** → By design the camera is an edge node sending only
-  **metadata, never raw video**; face-matching is a narrow watch-list, not mass
-  recognition.
-- **"What's your accuracy?"** → As a prototype we prove the **end-to-end workflow
-  and the maths** are correct; accuracy improves with real data via the feedback
-  loop. (We don't quote a fake number.)
-- **"Why should we believe the impact?"** → Our targets are scaled conservatively
-  from real deployments (PredPol, ShotSpotter) — see Part 5 — and framed as
-  targets, not claims.
+  round, equal clusters and is thrown off by outliers; HDBSCAN handles arbitrary
+  shapes/densities and **filters noise**, so one random incident can't fake a hotspot.
+- **"Why SARIMA and not just an average?"** → SARIMA models **seasonality** — the
+  weekly Fri/Sat peak and festive spikes — plus trend and noise-smoothing, so it
+  forecasts the *next* window, not just the past average.
+- **"Explain your fusion formula."** → `P_event = confidence × reliability`; combine
+  with noisy-OR `P_combined = 1 − Π(1 − P_event)`; multiply by context (time, crowd,
+  recency, zone); then `R_zone = 0.4·P_base + 0.6·P_realtime`. Running alone = 18%;
+  running + chasing + bag = 79%. **Fusion, not single-event rules.**
+- **"Why hexagons, not squares?"** → Equal areas + 6 equidistant neighbours → fair,
+  consistent nearest-patrol and coverage maths. The same indexing Uber uses.
+- **"How do AI, hardware, software and users interact?"** → Camera hardware runs
+  the AI **at the edge** → sends **metadata** over the network → **software** brain
+  (fusion engine + database) → two **users**: police dashboard + citizen app →
+  officer feedback returns to retrain the AI. One closed loop.
+- **"What's the role of the per-event decay — isn't that just a timer?"** → It's an
+  **anti-fatigue mechanism**: each crime type fades at its own rate so a jogger
+  doesn't keep a zone red while a weapon stays weighted — it keeps the score
+  reflecting *current* reality and prevents permanent red zones.
+- **"How is this different from normal CCTV / motion detection?"** → CCTV records and
+  motion only says 'something moved'; we **classify** what/who, **score** danger
+  probabilistically, and **act** with a dispatch — in real time, not next-day review.
+
+### C. Prototype, feasibility & impact (Criterion 3)
+- **"What's real vs. simulated?"** → Real & running: detection, HDBSCAN, SARIMA,
+  fusion, per-event decay, H3 dispatch, DB, dashboard. Simulated: patrol GPS + demo
+  data. Roadmap: mobile app, edge chips, production pipeline.
+- **"Is it actually feasible to deploy?"** → Yes — it's **additive**: retrofits onto
+  existing CCTV, reads existing PDRM records, sends metadata not video (~95% less
+  bandwidth). No rip-and-replace. Going live = change the data source, not the engine.
+- **"What's your accuracy?"** → As a prototype we prove the **end-to-end workflow and
+  the maths** are correct; real-world accuracy improves through the feedback loop. We
+  won't quote a fake number.
+- **"Why should we believe the impact figures?"** → They're **targets**, scaled
+  conservatively from PredPol (LA) and ShotSpotter (Chicago) — framed as goals, not
+  claims.
+- **"What would you build next with more time?"** → The citizen mobile app, real
+  patrol-GPS integration, and edge-AI camera hardware (Jetson/Coral).
+
+### D. Ethics, privacy & bias (be ready — judges love this)
+- **"Isn't predictive policing biased?"** → We address it three ways: HDBSCAN noise
+  filtering, the **decay** preventing permanent red zones, and the feedback loop with
+  equity audits that recalibrate if predictions diverge from reality by demographic.
+- **"Privacy / PDPA?"** → Edge nodes transmit **only metadata, never raw video**;
+  face-matching is a **narrow wanted-list**, not mass facial recognition — a hard
+  architectural boundary.
+- **"What if the AI is wrong?"** → It **recommends**, humans **decide** — an officer
+  always confirms, and every outcome is logged to improve the model.
+
+### One-liners to keep in your pocket
+- *"Running alone = 18%. Running + chased + bag = 79%. That's the whole idea."*
+- *"We don't replace the cameras — we give them a brain."*
+- *"It recommends; humans decide; it learns from the outcome."*
+- *"Change the data source, not the engine."*
 
 ---
 
