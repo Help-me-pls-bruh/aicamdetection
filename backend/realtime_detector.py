@@ -68,7 +68,7 @@ DETECT_CLASS_IDS = [PERSON_CLASS_ID] + OBJECT_CLASS_IDS + [COCO_KNIFE_CLASS_ID]
 # real, stricter thresholds are applied per-class afterwards. PERSON_CONF is
 # kept at 0.5 so the tracker receives exactly the same quality of person
 # detections as before (tracking logic unchanged).
-GLOBAL_CONF = 0.30
+GLOBAL_CONF = 0.25
 PERSON_CONF = 0.50
 IOU_NMS = 0.45
 IMG_SIZE = int(os.environ.get("SENTINEL_YOLO_IMGSZ", "640"))  # 640 default; 960 = better small-object accuracy, slower
@@ -284,34 +284,41 @@ class RealtimeDetector:
             if self.custom_model is not None:
                 events.extend(self._detect_custom(frame))
             else:
-                events.extend(self._coco_weapon_events(frame))
+                events.extend(self._coco_weapon_events(frame, results))
 
         annotated = self._draw_annotations(frame)
         return annotated, events
 
-    def _coco_weapon_events(self, frame):
+    def _coco_weapon_events(self, frame, results):
         """
-        Dedicated knife pass on the base COCO model (class 43), treated as a
-        weapon — works with no custom training. Uses test-time augmentation
-        (augment=True runs the image at multiple scales + flips), so the knife
-        is detected from many more angles/orientations, not just clean side-on.
+        Knife (COCO class 43) treated as a weapon — no custom training needed.
+        By default we REUSE the main detection (`results`) so there is NO second
+        YOLO inference — keeps FPS high. Only if SENTINEL_KNIFE_TTA=1 do we run a
+        dedicated augmented pass (best angles, but slower).
         Emits WEAPON_DETECTED events and fills knife_detections (red boxes).
         """
         events = []
         self.knife_detections = []
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        try:
-            kr = self.model(
-                frame, classes=[COCO_KNIFE_CLASS_ID], conf=COCO_KNIFE_CONF,
-                imgsz=IMG_SIZE, augment=KNIFE_TTA, device=self.device, verbose=False,
-            )[0]
-        except Exception:
-            return events
 
-        boxes = getattr(kr, "boxes", None)
+        if KNIFE_TTA:
+            try:
+                r = self.model(
+                    frame, classes=[COCO_KNIFE_CLASS_ID], conf=COCO_KNIFE_CONF,
+                    imgsz=IMG_SIZE, augment=True, device=self.device, verbose=False,
+                )[0]
+                boxes = getattr(r, "boxes", None)
+            except Exception:
+                boxes = None
+        else:
+            boxes = getattr(results, "boxes", None)  # reuse main inference (fast)
+
         if boxes is None:
             return events
         for box in boxes:
+            cid = int(box.cls[0]) if box.cls is not None else -1
+            if cid != COCO_KNIFE_CLASS_ID:
+                continue
             conf = float(box.conf[0]) if box.conf is not None else 0.0
             if conf < COCO_KNIFE_CONF:
                 continue
@@ -434,7 +441,7 @@ class RealtimeDetector:
                     "timestamp": now_str,
                     "source": "CCTV_AI",
                     "track_id": tracker.track_id,
-                    "details": f"Person #{tracker.track_id} running at speed {tracker.avg_speed:.0f}",
+                    "details": f"Person #{tracker.track_id} moving fast",
                 })
 
         for tracker in trackers:
@@ -512,7 +519,7 @@ class RealtimeDetector:
                     "longitude": self.camera_location["lon"],
                     "timestamp": now_str,
                     "source": "CCTV_AI",
-                    "details": f"Crowd anomaly: {len(trackers)} people, avg speed {avg_crowd_speed:.0f}",
+                    "details": f"Crowd anomaly: {len(trackers)} people",
                 })
 
         self.detected_events.extend(events)
