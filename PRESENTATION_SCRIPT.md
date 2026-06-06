@@ -10,7 +10,21 @@
 
 ---
 
-# ⭐ THE 6-MINUTE COMPETITION SCRIPT (use this on the day)
+## 📌 HOW TO USE THIS PACK
+| Section | Read aloud? | Purpose |
+|---|---|---|
+| 🎤 **SCRIPT TO PRESENT — 6 MIN** | ✅ **YES** | The only thing you say on the day. Rehearse this. |
+| 📖 STUDY NOTES 1 — System Breakdown | ❌ No | Master your system → answer Q&A confidently. |
+| 📖 STUDY NOTES 2 — Deep-Dive Script | ❌ No | Longer version, for learning / backup. Too long for 6 min. |
+| ❓ Q&A PREP | ❌ No | Rehearse answers for the 6-min Q&A. |
+| 🖥️ DEMO ORDER | ❌ No | What to click during the live demo. |
+| 📊 IMPACT NUMBERS | ❌ No | Figures to cite (as targets). |
+
+**Simple rule: 🎤 = what you say · 📖 = what you know.**
+
+---
+
+# 🎤 SCRIPT TO PRESENT — 6 MIN  ·  USE THIS ON THE DAY
 
 **Format:** 6 min talk + 6 min Q&A. **Rubric:** Problem 30% · **AI & System Design
 40% (most time)** · Prototype/Feasibility/Impact 30%.
@@ -103,7 +117,7 @@ city.** Thank you — we're ready for your questions."
 
 ---
 
-# PART 1 — Essential Parts (the full technical breakdown)
+# 📖 STUDY NOTES 1 — System Breakdown  ·  KNOW THIS FOR Q&A (do not read aloud)
 
 Our system has **three layers — it SEES, it THINKS, and it ACTS** — wrapped in a
 **self-learning loop**. Internally these are **five AI/data models, Model A–E**,
@@ -299,7 +313,7 @@ custom probabilistic fusion` (intelligence) · `Flask + SQLite` (backend) ·
 
 ---
 
-# PART 2 — The Spoken Script (~7–9 minutes, detailed)
+# 📖 STUDY NOTES 2 — Deep-Dive Script  ·  BACKUP / LEARNING ONLY (too long for the 6-min slot)
 
 *Speaker cues in [brackets]. Demo cues in **[SHOW: …]**.*
 
@@ -435,7 +449,7 @@ questions."
 
 ---
 
-# PART 3 — Q&A BANK (you have 6 minutes — be ready)
+# ❓ Q&A PREP  ·  FOR THE 6-MIN Q&A
 
 **How to answer:** 20–30 s each. **Lead with the direct answer**, then one reason,
 then stop. If you don't know, say what you'd do to find out — never bluff. Decide
@@ -508,7 +522,7 @@ then stop. If you don't know, say what you'd do to find out — never bluff. Dec
 
 ---
 
-# PART 4 — Suggested live-demo order (2–3 min)
+# 🖥️ DEMO ORDER  ·  WHAT TO CLICK DURING THE LIVE DEMO (§3)
 1. **[Risk Map tab]** — "The whole city, tiled into Uber H3 hexagons, scored live."
 2. **[Point at red hexes]** — "Only 2–4 high-risk zones at once — danger
    concentrated where it actually is, right now."
@@ -522,7 +536,7 @@ then stop. If you don't know, say what you'd do to find out — never bluff. Dec
 
 ---
 
-# PART 5 — Impact targets (framed honestly, scaled from real deployments)
+# 📊 IMPACT NUMBERS  ·  CITE AS TARGETS (framed honestly, scaled from real deployments)
 > Quote these as **targets**, benchmarked from PredPol (LA), ShotSpotter (Chicago),
 > and safety-app studies — not as proven results.
 
