@@ -184,6 +184,7 @@ class RealtimeDetector:
         self.object_counts = {}       # label -> count for the current frame
         self.custom_model = None      # optional fine-tuned model (knife/bag/wallet...)
         self.knife_detections = []    # latest weapon boxes for drawing (red)
+        self.knife_tta = KNIFE_TTA    # all-angle knife mode (toggle live with 'a')
 
         if HAS_YOLO:
             model_name = self._select_model()
@@ -301,7 +302,7 @@ class RealtimeDetector:
         self.knife_detections = []
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        if KNIFE_TTA:
+        if self.knife_tta:
             try:
                 r = self.model(
                     frame, classes=[COCO_KNIFE_CLASS_ID], conf=COCO_KNIFE_CONF,
@@ -567,6 +568,13 @@ class RealtimeDetector:
 
         cv2.putText(frame, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), (10, 60),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+
+        # All-angle knife mode indicator + how to toggle it (press 'a').
+        aug = "ON" if self.knife_tta else "OFF"
+        aug_color = (0, 255, 0) if self.knife_tta else (150, 150, 150)
+        cv2.putText(frame, f"[a] knife all-angles: {aug}",
+                    (10, frame.shape[0] - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.55,
+                    aug_color, 2)
 
         return frame
 

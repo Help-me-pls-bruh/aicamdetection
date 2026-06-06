@@ -16,7 +16,7 @@ from backend.realtime_detector import RealtimeDetector
 def main():
     print("=" * 50)
     print("  SentinelAI - Camera Test")
-    print("  Press 'q' to quit")
+    print("  Press 'q' to quit  |  Press 'a' to toggle knife all-angle mode")
     print("=" * 50)
 
     detector = RealtimeDetector(
@@ -44,8 +44,13 @@ def main():
 
         cv2.imshow("SentinelAI - Camera Test", annotated)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
             break
+        elif key == ord("a"):
+            detector.knife_tta = not detector.knife_tta
+            state = "ON (best angles, slower)" if detector.knife_tta else "OFF (faster)"
+            print(f"[TOGGLE] Knife all-angle augmentation: {state}")
 
     cap.release()
     cv2.destroyAllWindows()
