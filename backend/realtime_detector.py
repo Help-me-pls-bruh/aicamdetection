@@ -56,6 +56,9 @@ OBJECT_CLASSES = {
 # so a kitchen/chef knife is detected even before any custom model is trained.
 COCO_KNIFE_CLASS_ID = 43
 COCO_KNIFE_CONF = 0.25  # lower = catches more knife angles (more sensitive)
+# Test-time augmentation = best angle coverage but ~2-3x slower (laggy on CPU).
+# OFF by default for smooth FPS. Set SENTINEL_KNIFE_TTA=1 to turn it on.
+KNIFE_TTA = os.environ.get("SENTINEL_KNIFE_TTA", "0") == "1"
 
 OBJECT_CLASS_IDS = list(OBJECT_CLASSES.keys())
 DETECT_CLASS_IDS = [PERSON_CLASS_ID] + OBJECT_CLASS_IDS + [COCO_KNIFE_CLASS_ID]
@@ -224,7 +227,9 @@ class RealtimeDetector:
 
         if YOLO_MODEL_ENV and YOLO_MODEL_ENV.lower() != "auto":
             return YOLO_MODEL_ENV
-        return "yolov8m.pt" if self.device == "cuda" else "yolov8s.pt"
+        # CPU -> nano (fast, smooth FPS for a live booth demo).
+        # GPU -> medium (accurate). Override with SENTINEL_YOLO_MODEL=yolov8s.pt etc.
+        return "yolov8m.pt" if self.device == "cuda" else "yolov8n.pt"
 
     def process_frame(self, frame):
         """Process a single video frame. Returns annotated frame + detected events."""
@@ -298,7 +303,7 @@ class RealtimeDetector:
         try:
             kr = self.model(
                 frame, classes=[COCO_KNIFE_CLASS_ID], conf=COCO_KNIFE_CONF,
-                imgsz=IMG_SIZE, augment=True, device=self.device, verbose=False,
+                imgsz=IMG_SIZE, augment=KNIFE_TTA, device=self.device, verbose=False,
             )[0]
         except Exception:
             return events
