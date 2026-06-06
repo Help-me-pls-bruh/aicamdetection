@@ -513,7 +513,7 @@ class RealtimeDetector:
                 label = f"#{tracker.track_id} LOITERING"
             else:
                 color = (0, 255, 0)
-                label = f"#{tracker.track_id}"
+                label = f"#{tracker.track_id} person/moving"
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
