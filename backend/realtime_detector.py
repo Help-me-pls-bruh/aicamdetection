@@ -227,9 +227,9 @@ class RealtimeDetector:
 
         if YOLO_MODEL_ENV and YOLO_MODEL_ENV.lower() != "auto":
             return YOLO_MODEL_ENV
-        # CPU -> nano (fast, smooth FPS for a live booth demo).
-        # GPU -> medium (accurate). Override with SENTINEL_YOLO_MODEL=yolov8s.pt etc.
-        return "yolov8m.pt" if self.device == "cuda" else "yolov8n.pt"
+        # CPU -> small (good accuracy incl. suitcase/bags). GPU -> medium.
+        # Override with SENTINEL_YOLO_MODEL=yolov8n.pt for faster/lower accuracy.
+        return "yolov8m.pt" if self.device == "cuda" else "yolov8s.pt"
 
     def process_frame(self, frame):
         """Process a single video frame. Returns annotated frame + detected events."""
