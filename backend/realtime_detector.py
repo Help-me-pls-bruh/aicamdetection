@@ -526,7 +526,7 @@ class RealtimeDetector:
         self._draw_knives(frame)
 
         person_count = len(self.person_trackers)
-        cv2.putText(frame, f"Persons: {person_count}", (10, 30),
+        cv2.putText(frame, f"person(movable): {person_count}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
         if self.knife_detections:
