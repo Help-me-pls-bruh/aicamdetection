@@ -55,7 +55,7 @@ OBJECT_CLASSES = {
 # COCO also ships a "knife" class (id 43). We treat it as a weapon out-of-the-box
 # so a kitchen/chef knife is detected even before any custom model is trained.
 COCO_KNIFE_CLASS_ID = 43
-COCO_KNIFE_CONF = 0.35
+COCO_KNIFE_CONF = 0.25  # lower = catches more knife angles (more sensitive)
 
 OBJECT_CLASS_IDS = list(OBJECT_CLASSES.keys())
 DETECT_CLASS_IDS = [PERSON_CLASS_ID] + OBJECT_CLASS_IDS + [COCO_KNIFE_CLASS_ID]
@@ -94,6 +94,10 @@ CROWD_THRESHOLD = 8
 FIGHT_DISTANCE_THRESHOLD = 40
 FIGHT_SPEED_THRESHOLD = 30
 
+# Simple motion gate: above this the person is "moving", below it they're "still".
+# (We label by motion only — not by how fast.)
+MOTION_THRESHOLD = 8  # pixels/second
+
 
 class PersonTracker:
     def __init__(self, track_id):
@@ -125,6 +129,11 @@ class PersonTracker:
         if not self.speeds:
             return 0.0
         return np.mean(list(self.speeds)[-10:])
+
+    @property
+    def is_moving(self):
+        """Motion only: True if the person is moving at all, False if still."""
+        return self.avg_speed > MOTION_THRESHOLD
 
     @property
     def duration(self):
@@ -270,32 +279,41 @@ class RealtimeDetector:
             if self.custom_model is not None:
                 events.extend(self._detect_custom(frame))
             else:
-                events.extend(self._coco_weapon_events(results))
+                events.extend(self._coco_weapon_events(frame))
 
         annotated = self._draw_annotations(frame)
         return annotated, events
 
-    def _coco_weapon_events(self, results):
+    def _coco_weapon_events(self, frame):
         """
-        Extract knives from the base COCO model (class 43) and treat them as
-        weapons — works with no custom training. Emits WEAPON_DETECTED events
-        and fills knife_detections so they're drawn as red boxes.
+        Dedicated knife pass on the base COCO model (class 43), treated as a
+        weapon — works with no custom training. Uses test-time augmentation
+        (augment=True runs the image at multiple scales + flips), so the knife
+        is detected from many more angles/orientations, not just clean side-on.
+        Emits WEAPON_DETECTED events and fills knife_detections (red boxes).
         """
         events = []
         self.knife_detections = []
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        boxes = getattr(results, "boxes", None)
+        try:
+            kr = self.model(
+                frame, classes=[COCO_KNIFE_CLASS_ID], conf=COCO_KNIFE_CONF,
+                imgsz=IMG_SIZE, augment=True, device=self.device, verbose=False,
+            )[0]
+        except Exception:
+            return events
+
+        boxes = getattr(kr, "boxes", None)
         if boxes is None:
             return events
         for box in boxes:
-            cid = int(box.cls[0]) if box.cls is not None else -1
-            if cid != COCO_KNIFE_CLASS_ID:
-                continue
             conf = float(box.conf[0]) if box.conf is not None else 0.0
             if conf < COCO_KNIFE_CONF:
                 continue
             bbox = box.xyxy[0].cpu().numpy()
-            self.knife_detections.append({"bbox": bbox, "conf": round(conf, 2)})
+            self.knife_detections.append(
+                {"bbox": bbox, "conf": round(conf, 2), "label": "KNIFE"}
+            )
             events.append({
                 "event_type": "WEAPON_DETECTED",
                 "confidence_score": round(conf, 2),
@@ -504,16 +522,13 @@ class RealtimeDetector:
                 continue
             x1, y1, x2, y2 = [int(v) for v in tracker.bbox]
 
-            if tracker.avg_speed > SPEED_RUNNING_THRESHOLD:
-                color = (0, 0, 255)
-                label = f"#{tracker.track_id} RUNNING"
-            elif (tracker.duration > LOITER_TIME_THRESHOLD and
-                  tracker.movement_radius < LOITER_RADIUS):
-                color = (0, 165, 255)
-                label = f"#{tracker.track_id} LOITERING"
-            else:
+            # Motion only — moving vs still (no speed magnitude).
+            if tracker.is_moving:
                 color = (0, 255, 0)
                 label = f"#{tracker.track_id} person/moving"
+            else:
+                color = (0, 200, 255)
+                label = f"#{tracker.track_id} person/still"
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
