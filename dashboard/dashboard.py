@@ -353,7 +353,7 @@ def gen_demo_events(levels):
             "type": etype, "icon": icon, "level": lvl, "score": score,
             "place": random.choice(KL_PLACES), "ago": random.randint(1, 180),
         })
-    events.sort(key=lambda e: -e["score"])
+    events.sort(key=lambda e: e["ago"])  # most recent first
     return events
 
 
@@ -393,7 +393,7 @@ def render_live_map_events():
             marker_line_color="#5b6b85", showscale=False, hoverinfo="skip",
         ))
         fig.update_layout(
-            mapbox_style="carto-positron", mapbox_zoom=12.2,
+            mapbox_style="carto-positron", mapbox_zoom=11.2,
             mapbox_center={"lat": 3.150, "lon": 101.690},
             height=600, margin=dict(l=0, r=0, t=0, b=0),
         )
