@@ -138,3 +138,51 @@ slides should reinforce, not repeat, the speaker. Use icons where helpful.
 - If Claude design can't take images directly, generate the deck first, then drop your
   5 screenshots onto the slides marked [IMAGE].
 - Want a lighter theme instead of dark? Change the VISUAL STYLE block's colours.
+
+---
+
+# PART C — Two MISSING slides to append (paste into Claude design)
+
+Suggested placement in your current 12-slide deck:
+- **DUAL OUTPUT** → insert after slide 11 (IT ACTS) — police output, then public output.
+- **EXPECTED IMPACT** → make it the new FINAL slide (after IT LEARNS), so the deck
+  ends on outcomes.
+- Then renumber footers to **/14**.
+
+```
+Add these TWO slides to the existing SentinelAI deck, matching its style EXACTLY:
+dark command-center theme (deep navy/near-black, white text), bold art-deco "KINO"-style
+display titles, green #1e9e57 / amber #f5a524 / red #e11d48 accents, a blue gradient
+(#13315c → #1d4e89), section headers in the format "0X · SECTION NAME", and the footer
+"Technosapiens · SentinelAI  ·  XX / 14".
+
+SLIDE A — DUAL OUTPUT (place after "IT ACTS")
+- Header: "09 · DUAL OUTPUT"   Title: "Two audiences, one platform."
+- Two columns:
+  LEFT — "FOR POLICE  ·  Operations Dashboard": live H3 risk map, real-time alerts,
+    nearest-patrol dispatch, officer feedback. (the command center)
+  RIGHT — "FOR CITIZENS  ·  Public Safety App": colour-coded Safe / Caution / Danger
+    zones, safer-route suggestions (especially women travelling at night), one-tap
+    incident reporting, panic button. "Like Waze — but for personal safety."
+- Bottom strip (feasibility): "Feasible by design — retrofits EXISTING CCTV, reads
+  EXISTING police records, sends METADATA not raw video. No new cameras, no rip-and-replace."
+- [IMAGE optional: a simple phone mockup showing a green/amber/red city map]
+
+SLIDE B — EXPECTED IMPACT (make this the FINAL slide)
+- Header: "10 · IMPACT"   Title: "Designed to move the numbers."
+- Five large stat callouts (big numbers, small labels):
+    ↓ 15–20%  crime in targeted categories
+    ↓ 40%     patrol response time
+    < 30s     from detection to dispatch
+    3×        coverage (CCTV + citizen reports)
+    ~95%      bandwidth saved (metadata, not video)
+- Small note under the stats: "Targets benchmarked conservatively from real
+  deployments — PredPol (LA) and ShotSpotter (Chicago)."
+- One relevance line: "Aligned with KL City Plan 2040's street-crime KPI · MyDIGITAL
+  Blueprint · PDPA-compliant by design."
+- Big closing line: "Smart-city = Safe-city."
+
+Keep text tight and punchy. Use big stat callouts (60–72pt numbers) for Slide B and a
+clean two-column split for Slide A. No accent lines under titles.
+```
+
