@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -13,6 +14,15 @@ except ImportError:
 try:
     from statsmodels.tsa.statespace.sarimax import SARIMAX
     HAS_SARIMA = True
+    # SARIMA's optimiser sometimes hits its iteration cap before fully
+    # converging — a harmless warning. Silence it so the console stays clean.
+    try:
+        from statsmodels.tools.sm_exceptions import ConvergenceWarning
+        warnings.simplefilter("ignore", ConvergenceWarning)
+    except Exception:
+        pass
+    warnings.filterwarnings("ignore", message="Non-invertible|Non-stationary")
+    warnings.filterwarnings("ignore", message="No frequency information")
 except ImportError:
     HAS_SARIMA = False
     print("[WARN] statsmodels not installed. Using temporal fallback.")
