@@ -45,7 +45,7 @@ echo   Starting the MAP...
 echo   - Backend  (this trains the models; first run takes a few minutes)
 start "SentinelAI Backend" cmd /k "python run.py"
 echo   - Dashboard (the map window will open in your browser)
-start "SentinelAI Dashboard" cmd /k "streamlit run dashboard\dashboard.py --server.port 8501"
+start "SentinelAI Dashboard" cmd /k "python -m streamlit run dashboard\dashboard.py --server.port 8501"
 echo.
 echo   Two black windows opened (Backend + Dashboard) - leave them running.
 echo   The map opens at:  http://localhost:8501
@@ -71,7 +71,7 @@ goto menu
 echo.
 echo   Starting the MAP + the CAMERA...
 start "SentinelAI Backend" cmd /k "python run.py"
-start "SentinelAI Dashboard" cmd /k "streamlit run dashboard\dashboard.py --server.port 8501"
+start "SentinelAI Dashboard" cmd /k "python -m streamlit run dashboard\dashboard.py --server.port 8501"
 start "SentinelAI Camera" cmd /k "python test_camera.py"
 echo.
 echo   Map:    http://localhost:8501
