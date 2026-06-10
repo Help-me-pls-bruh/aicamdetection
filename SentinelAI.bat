@@ -64,12 +64,13 @@ echo.
 echo    ----------------------  AI  CAMERA  ----------------------
 echo.
 echo     ^>^>  Starting the AI camera...
-start /min "SentinelAI Camera" cmd /k "python test_camera.py"
+start /min "SentinelAI Camera" cmd /c "python test_camera.py || pause"
 echo.
 echo     OK  A camera window will appear in a few seconds.
 echo.
 echo         Inside the camera window:
 echo            q  =  quit            a  =  knife all-angle mode
+echo            or simply click the window's X to close the system
 echo.
 echo         First-ever run downloads the AI model, about 22 MB.
 echo.
@@ -78,7 +79,7 @@ goto menu
 
 :: ============================ FULL DEMO =============================
 :both
-start /min "SentinelAI Camera" cmd /k "python test_camera.py"
+start /min "SentinelAI Camera" cmd /c "python test_camera.py || pause"
 call :launchmap
 echo     OK  Camera is starting in its own window as well.
 echo.

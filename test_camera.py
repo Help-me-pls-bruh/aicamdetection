@@ -47,7 +47,10 @@ def main():
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
-        elif key == ord("a"):
+        # Clicking the window's X button closes everything too
+        if cv2.getWindowProperty("SentinelAI - Camera Test", cv2.WND_PROP_VISIBLE) < 1:
+            break
+        if key == ord("a"):
             detector.knife_tta = not detector.knife_tta
             state = "ON (best angles, slower)" if detector.knife_tta else "OFF (faster)"
             print(f"[TOGGLE] Knife all-angle augmentation: {state}")
