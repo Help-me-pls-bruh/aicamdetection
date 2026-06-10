@@ -50,7 +50,9 @@ class HistoricalEngine:
             return pd.DataFrame()
 
         df = pd.DataFrame([dict(r) for r in rows])
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        # Live events and seeded events store timestamps in slightly
+        # different formats, so parse leniently.
+        df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed")
         return df
 
     def run_hdbscan(self, df):
@@ -152,8 +154,8 @@ class HistoricalEngine:
         is_weekend = now.weekday() >= 5
 
         if "timestamp" in zone_df.columns:
-            zone_df["hour"] = pd.to_datetime(zone_df["timestamp"]).dt.hour
-            zone_df["dow"] = pd.to_datetime(zone_df["timestamp"]).dt.dayofweek
+            zone_df["hour"] = pd.to_datetime(zone_df["timestamp"], format="mixed").dt.hour
+            zone_df["dow"] = pd.to_datetime(zone_df["timestamp"], format="mixed").dt.dayofweek
 
             hour_counts = zone_df.groupby("hour").size()
             if current_hour in hour_counts.index:

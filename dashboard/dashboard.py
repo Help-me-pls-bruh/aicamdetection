@@ -683,7 +683,7 @@ def render_zone_detail():
     history = data.get("risk_history", [])
     if history:
         df_hist = pd.DataFrame(history)
-        df_hist["timestamp"] = pd.to_datetime(df_hist["timestamp"])
+        df_hist["timestamp"] = pd.to_datetime(df_hist["timestamp"], format="mixed")
         fig = px.line(
             df_hist, x="timestamp", y="r_zone",
             title=f"Risk Score Over Time - {zone_id}",

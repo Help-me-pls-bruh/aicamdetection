@@ -1,0 +1,22 @@
+[WARN] deepface not installed. Face recognition disabled.
+[FACE] No wanted faces found. Add .jpg/.png images to wanted_faces/ folder.
+============================================================
+  SentinelAI - Crime Prevention System
+  Initializing...
+============================================================
+[DB] Database initialized successfully.
+[ZONE] Loaded 2025 existing zones.
+[DB] Database initialized successfully.
+[SEED] Database already has 11323 events. Skipping seed.
+[PATROL] 6 patrol units already present.
+[HISTORICAL] Starting full training cycle...
+[HDBSCAN] Computed spatial risk for 597 zones.
+[HISTORICAL] Training complete. 597 zones analyzed.
+[SYSTEM] Initialization complete.
+
+
+[SERVER] Flask API running at http://localhost:5000
+[SERVER] Dashboard: run 'streamlit run dashboard/dashboard.py'
+
+ * Serving Flask app 'backend.app'
+ * Debug mode: off
