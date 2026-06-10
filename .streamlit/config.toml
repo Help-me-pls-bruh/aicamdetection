@@ -1,0 +1,7 @@
+[theme]
+# Pure-black OLED dark mode
+base = "dark"
+primaryColor = "#1d4e89"
+backgroundColor = "#000000"
+secondaryBackgroundColor = "#0a0c10"
+textColor = "#e8eaf0"

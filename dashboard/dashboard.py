@@ -112,7 +112,7 @@ st.markdown("""
     .main-header {
         font-size: 2.4rem;
         font-weight: 700;
-        color: #1e293b;
+        color: #f1f5f9;
         padding: 0.5rem 0;
     }
     .metric-card {
@@ -125,7 +125,7 @@ st.markdown("""
     .metric-card h3 { margin: 0; font-size: 1.1rem; opacity: 0.9; }
     .metric-card h1 { margin: 0.4rem 0 0 0; font-size: 2.6rem; }
     .alert-critical {
-        background: #fef2f2;
+        background: #20070b;
         border-left: 6px solid #ef4444;
         padding: 1.2rem;
         border-radius: 12px;
@@ -133,7 +133,7 @@ st.markdown("""
         font-size: 1.15rem;
     }
     .alert-high {
-        background: #fff7ed;
+        background: #211302;
         border-left: 6px solid #f97316;
         padding: 1.2rem;
         border-radius: 12px;
@@ -189,16 +189,16 @@ def _inject_kino_and_theme():
         70%{box-shadow:0 0 0 12px rgba(225,29,72,0);}
         100%{box-shadow:0 0 0 0 rgba(225,29,72,0);} }
     .hex-legend { display:flex; gap:1.2rem; align-items:center; margin:0.4rem 0 0.2rem 0;
-        font-size:0.95rem !important; font-weight:600; color:#334155; }
+        font-size:0.95rem !important; font-weight:600; color:#cbd5e1; }
     .sw { display:inline-block; width:15px; height:15px; border-radius:4px;
         margin-right:6px; vertical-align:middle; }
     .ev-card { border-radius:12px; padding:0.7rem 1rem; margin-bottom:0.55rem;
-        background:#ffffff; border-left:6px solid #94a3b8;
-        box-shadow:0 2px 8px rgba(15,23,42,0.06); }
-    .ev-high { border-left-color:#e11d48; background:#fff1f4; }
-    .ev-med  { border-left-color:#f5a524; background:#fffaf0; }
-    .ev-type { font-weight:800; font-size:1.05rem !important; color:#0f172a; }
-    .ev-meta { font-size:0.85rem !important; color:#64748b; }
+        background:#0e1116; border-left:6px solid #475569;
+        box-shadow:0 2px 8px rgba(0,0,0,0.5); }
+    .ev-high { border-left-color:#e11d48; background:#1c0810; }
+    .ev-med  { border-left-color:#f5a524; background:#1c1305; }
+    .ev-type { font-weight:800; font-size:1.05rem !important; color:#f1f5f9; }
+    .ev-meta { font-size:0.85rem !important; color:#94a3b8; }
     .ev-score { float:right; font-weight:800; font-size:1.2rem !important; }
     """
     st.markdown("<style>" + css + "</style>", unsafe_allow_html=True)
@@ -393,7 +393,7 @@ def render_live_map_events():
             marker_line_color="#5b6b85", showscale=False, hoverinfo="skip",
         ))
         fig.update_layout(
-            mapbox_style="carto-positron", mapbox_zoom=11.2,
+            mapbox_style="carto-darkmatter", mapbox_zoom=11.2,
             mapbox_center={"lat": 3.150, "lon": 101.690},
             height=600, margin=dict(l=0, r=0, t=0, b=0),
         )
@@ -668,7 +668,7 @@ def render_zone_detail():
             size_max=40,
             hover_name="zone_id",
             hover_data={"risk_pct": ":.1f", "lat": False, "lon": False, "risk_level": True},
-            mapbox_style="carto-positron",
+            mapbox_style="carto-darkmatter",
             center={"lat": center_lat, "lon": center_lon},
             zoom=15,
             height=400,
@@ -928,7 +928,7 @@ def render_patrol_dispatch():
             ))
 
         fig.update_layout(
-            mapbox_style="carto-positron",
+            mapbox_style="carto-darkmatter",
             mapbox_zoom=11,
             mapbox_center={"lat": 3.155, "lon": 101.705},
             height=600,
