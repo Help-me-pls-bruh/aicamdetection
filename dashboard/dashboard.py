@@ -52,6 +52,65 @@ DEMO_LEVELS = {
     "HIGH":   {"color": "#e11d48", "z": 0.92},
 }
 
+
+# ---------------- Light / Dark (OLED) theme support ----------------
+def _theme_is_dark():
+    # "theme_dark" is a plain session key (not widget-bound), so it survives
+    # the extra rerun that applies the theme switch.
+    return st.session_state.get("theme_dark", True)
+
+
+def _on_theme_toggle():
+    st.session_state["theme_dark"] = st.session_state["dark_mode_widget"]
+
+
+def _palette():
+    """Colors for everything we style ourselves, per theme."""
+    if _theme_is_dark():
+        return {
+            "page_bg": "#000000", "header_text": "#f1f5f9",
+            "crit_bg": "#20070b", "high_bg": "#211302",
+            "legend": "#cbd5e1", "card_bg": "#0e1116",
+            "card_border": "#475569", "card_high": "#1c0810",
+            "card_med": "#1c1305", "ev_type": "#f1f5f9",
+            "ev_meta": "#94a3b8", "shadow": "rgba(0,0,0,0.5)",
+        }
+    return {
+        "page_bg": "#ffffff", "header_text": "#1e293b",
+        "crit_bg": "#fef2f2", "high_bg": "#fff7ed",
+        "legend": "#334155", "card_bg": "#ffffff",
+        "card_border": "#94a3b8", "card_high": "#fff1f4",
+        "card_med": "#fffaf0", "ev_type": "#0f172a",
+        "ev_meta": "#64748b", "shadow": "rgba(15,23,42,0.06)",
+    }
+
+
+def _map_style():
+    """Map tiles: near-black for dark mode, light grey for light mode."""
+    return "carto-darkmatter" if _theme_is_dark() else "carto-positron"
+
+
+def _sync_streamlit_theme():
+    """Make Streamlit's built-in theme (widgets, tabs, metrics) follow the toggle."""
+    dark = _theme_is_dark()
+    want = {
+        "theme.base": "dark" if dark else "light",
+        "theme.backgroundColor": "#000000" if dark else "#ffffff",
+        "theme.secondaryBackgroundColor": "#0a0c10" if dark else "#f3f5f8",
+        "theme.textColor": "#e8eaf0" if dark else "#0f172a",
+    }
+    changed = False
+    try:
+        from streamlit import config as _config
+        for key, val in want.items():
+            if _config.get_option(key) != val:
+                _config.set_option(key, val)
+                changed = True
+    except Exception:
+        return
+    if changed:
+        st.rerun()
+
 st.markdown("""
 <style>
     html, body, [class*="css"] { font-size: 18px !important; }
@@ -201,9 +260,39 @@ def _inject_kino_and_theme():
     .ev-meta { font-size:0.85rem !important; color:#94a3b8; }
     .ev-score { float:right; font-weight:800; font-size:1.2rem !important; }
     """
-    st.markdown("<style>" + css + "</style>", unsafe_allow_html=True)
+
+    # Theme-dependent colors (override the defaults above per light/dark toggle)
+    p = _palette()
+    themed = ("""
+    .stApp { background:__PAGEBG__ !important; }
+    .main-header { color:__HEADERTEXT__; }
+    .alert-critical { background:__CRITBG__; }
+    .alert-high { background:__HIGHBG__; }
+    .hex-legend { color:__LEGEND__; }
+    .ev-card { background:__CARDBG__; border-left:6px solid __CARDBORDER__;
+        box-shadow:0 2px 8px __SHADOW__; }
+    .ev-high { border-left-color:#e11d48; background:__CARDHIGH__; }
+    .ev-med  { border-left-color:#f5a524; background:__CARDMED__; }
+    .ev-type { color:__EVTYPE__; }
+    .ev-meta { color:__EVMETA__; }
+    """
+    .replace("__PAGEBG__", p["page_bg"])
+    .replace("__HEADERTEXT__", p["header_text"])
+    .replace("__CRITBG__", p["crit_bg"])
+    .replace("__HIGHBG__", p["high_bg"])
+    .replace("__LEGEND__", p["legend"])
+    .replace("__CARDBG__", p["card_bg"])
+    .replace("__CARDBORDER__", p["card_border"])
+    .replace("__SHADOW__", p["shadow"])
+    .replace("__CARDHIGH__", p["card_high"])
+    .replace("__CARDMED__", p["card_med"])
+    .replace("__EVTYPE__", p["ev_type"])
+    .replace("__EVMETA__", p["ev_meta"]))
+
+    st.markdown("<style>" + css + themed + "</style>", unsafe_allow_html=True)
 
 
+_sync_streamlit_theme()
 _inject_kino_and_theme()
 
 
@@ -393,7 +482,7 @@ def render_live_map_events():
             marker_line_color="#5b6b85", showscale=False, hoverinfo="skip",
         ))
         fig.update_layout(
-            mapbox_style="carto-darkmatter", mapbox_zoom=11.2,
+            mapbox_style=_map_style(), mapbox_zoom=11.2,
             mapbox_center={"lat": 3.150, "lon": 101.690},
             height=600, margin=dict(l=0, r=0, t=0, b=0),
         )
@@ -668,7 +757,7 @@ def render_zone_detail():
             size_max=40,
             hover_name="zone_id",
             hover_data={"risk_pct": ":.1f", "lat": False, "lon": False, "risk_level": True},
-            mapbox_style="carto-darkmatter",
+            mapbox_style=_map_style(),
             center={"lat": center_lat, "lon": center_lon},
             zoom=15,
             height=400,
@@ -928,7 +1017,7 @@ def render_patrol_dispatch():
             ))
 
         fig.update_layout(
-            mapbox_style="carto-darkmatter",
+            mapbox_style=_map_style(),
             mapbox_zoom=11,
             mapbox_center={"lat": 3.155, "lon": 101.705},
             height=600,
@@ -963,6 +1052,11 @@ def render_patrol_dispatch():
 
 
 def main():
+    head_l, head_r = st.columns([5, 1])
+    with head_r:
+        st.toggle("🌙 Dark mode", key="dark_mode_widget", value=_theme_is_dark(),
+                  on_change=_on_theme_toggle,
+                  help="Dark = pure-black OLED look. Off = bright light mode.")
     render_header()
     st.markdown("---")
     render_metrics()
