@@ -373,8 +373,15 @@ def submit_feedback(alert_id, zone_id, label, notes=""):
         (label, alert_id),
     )
     if label == "TRUE_CRIME":
+        # Standard SQLite doesn't allow ORDER BY/LIMIT directly in UPDATE,
+        # so target the newest pending event via a subquery instead.
         conn.execute(
-            "UPDATE crime_events SET is_verified = 1, label = 'TRUE_CRIME' WHERE zone_id = ? AND label = 'PENDING' ORDER BY timestamp DESC LIMIT 1",
+            """UPDATE crime_events SET is_verified = 1, label = 'TRUE_CRIME'
+               WHERE event_id = (
+                   SELECT event_id FROM crime_events
+                   WHERE zone_id = ? AND label = 'PENDING'
+                   ORDER BY timestamp DESC LIMIT 1
+               )""",
             (zone_id,),
         )
     conn.commit()

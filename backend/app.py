@@ -211,30 +211,34 @@ def camera_processing_loop():
 
             consecutive_failures = 0
 
-            annotated, events = detector.process_frame(frame)
+            # One bad frame must never kill the camera thread — skip it instead.
+            try:
+                annotated, events = detector.process_frame(frame)
 
-            if face_engine:
-                face_events = face_engine.check_frame(
-                    frame, detector.frame_count,
-                    detector.camera_location
-                )
-                events.extend(face_events)
+                if face_engine:
+                    face_events = face_engine.check_frame(
+                        frame, detector.frame_count,
+                        detector.camera_location
+                    )
+                    events.extend(face_events)
 
-            for event in events:
-                p_event = fusion_engine.compute_p_event(
-                    event.get("confidence_score", 0.5),
-                    event.get("event_type", "SUSPICIOUS_ACTIVITY"),
-                )
-                ingest_realtime_event(
-                    event, zone_manager, p_event=p_event, camera_id="CAM_0"
-                )
+                for event in events:
+                    p_event = fusion_engine.compute_p_event(
+                        event.get("confidence_score", 0.5),
+                        event.get("event_type", "SUSPICIOUS_ACTIVITY"),
+                    )
+                    ingest_realtime_event(
+                        event, zone_manager, p_event=p_event, camera_id="CAM_0"
+                    )
 
-                if event.get("event_type") == "FACE_MATCH_WANTED":
-                    alert_system.check_wanted_person_alert(event)
+                    if event.get("event_type") == "FACE_MATCH_WANTED":
+                        alert_system.check_wanted_person_alert(event)
 
-            with latest_frame_lock:
-                _, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 70])
-                latest_frame = buffer.tobytes()
+                with latest_frame_lock:
+                    _, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                    latest_frame = buffer.tobytes()
+            except Exception as e:
+                print(f"[CAM] Frame processing error (frame skipped): {e}")
 
         if cap is not None:
             cap.release()

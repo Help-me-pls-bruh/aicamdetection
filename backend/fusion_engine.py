@@ -17,7 +17,7 @@ import math
 from datetime import datetime, timedelta
 from database.db_manager import (
     get_connection, get_active_realtime_events,
-    update_zone_risk, insert_alert,
+    update_zone_risk,
 )
 
 EVENT_RELIABILITY_WEIGHTS = {
@@ -144,10 +144,10 @@ class FusionEngine:
             w_time = 1.0
 
         w_crowd = 1.0
-        if events and len(events) >= 3:
-            w_crowd = 1.2
-        elif events and len(events) >= 5:
+        if events and len(events) >= 5:
             w_crowd = 1.3
+        elif events and len(events) >= 3:
+            w_crowd = 1.2
 
         w_recency = 0.7
         if events:
@@ -307,14 +307,8 @@ class FusionEngine:
 
         update_zone_risk(zone_id, p_spatial, p_time, p_base, p_realtime, r_zone, risk_level)
 
-        if risk_level in ("HIGH", "CRITICAL"):
-            event_desc = ", ".join(
-                [f"{e['event_type']}({e.get('confidence_score', 0):.0%})" for e in events[:5]]
-            ) if events else "Historical pattern"
-
-            alert_type = "CRITICAL_ALERT" if risk_level == "CRITICAL" else "HIGH_ALERT"
-            desc = f"Zone {zone_id}: R={r_zone:.2%} | Events: {event_desc}"
-            insert_alert(zone_id, r_zone, risk_level, alert_type, desc)
+        # Alerting is handled by AlertSystem (with its cooldown) in the risk
+        # loop — inserting here too would create a duplicate alert every cycle.
 
         return {
             "zone_id": zone_id,
