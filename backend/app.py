@@ -370,6 +370,16 @@ def api_feedback():
     if label not in ("TRUE_CRIME", "FALSE_ALARM"):
         return jsonify({"error": "Invalid label"}), 400
 
+    # The feedback table references alerts(alert_id) — reject unknown IDs
+    # with a clear message instead of a foreign-key 500.
+    conn = get_connection()
+    alert_exists = conn.execute(
+        "SELECT 1 FROM alerts WHERE alert_id = ?", (alert_id,)
+    ).fetchone()
+    conn.close()
+    if not alert_exists:
+        return jsonify({"error": f"Alert {alert_id} not found"}), 404
+
     result = feedback_loop.process_feedback(alert_id, zone_id, label, notes)
     return jsonify(result)
 

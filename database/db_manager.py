@@ -6,7 +6,10 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "sentinelai.db")
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    # timeout=30: wait up to 30s for the write lock instead of the 5s default —
+    # the risk loop writes constantly, and short-lived writers (e.g. officer
+    # feedback) were timing out with "database is locked".
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
