@@ -22,7 +22,7 @@ from backend.realtime_detector import RealtimeDetector
 #  - stream1 = high quality
 #  - stream2 = low quality (better for AI processing)
 # ============================================================
-RTSP_URL = "rtsp://admin:admin@192.168.0.101:554/stream2"
+RTSP_URL = "rtsp://Technosapiens:Technosapiens123@172.18.98.166:554/stream2"
 
 
 def open_stream(url):

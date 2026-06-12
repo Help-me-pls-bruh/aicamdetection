@@ -24,13 +24,15 @@ echo       +------------------------------------------------------------------+
 echo       ^|                                                                  ^|
 echo       ^|    [1]   LAUNCH RISK MAP      live KL hexagon map + incidents    ^|
 echo       ^|                                                                  ^|
-echo       ^|    [2]   LAUNCH AI CAMERA     real-time CCTV threat detection    ^|
+echo       ^|    [2]   LAUNCH WEBCAM        laptop webcam threat detection     ^|
 echo       ^|                                                                  ^|
-echo       ^|    [3]   FULL SYSTEM DEMO     map + camera together              ^|
+echo       ^|    [3]   LAUNCH CCTV CAMERA   TP-Link / RTSP IP camera           ^|
 echo       ^|                                                                  ^|
-echo       ^|    [4]   SHUT DOWN            stop every running component       ^|
+echo       ^|    [4]   FULL SYSTEM DEMO     map + webcam together              ^|
 echo       ^|                                                                  ^|
-echo       ^|    [5]   FIRST-TIME SETUP     install requirements (once)        ^|
+echo       ^|    [5]   SHUT DOWN            stop every running component       ^|
+echo       ^|                                                                  ^|
+echo       ^|    [6]   FIRST-TIME SETUP     install requirements (once)        ^|
 echo       ^|                                                                  ^|
 echo       ^|    [0]   EXIT                                                    ^|
 echo       ^|                                                                  ^|
@@ -41,9 +43,10 @@ set /p "choice=        >>  SELECT AN OPTION:  "
 
 if "%choice%"=="1" goto map
 if "%choice%"=="2" goto camera
-if "%choice%"=="3" goto both
-if "%choice%"=="4" goto stop
-if "%choice%"=="5" goto install
+if "%choice%"=="3" goto cctv
+if "%choice%"=="4" goto both
+if "%choice%"=="5" goto stop
+if "%choice%"=="6" goto install
 if "%choice%"=="0" goto end
 echo.
 echo        X   "%choice%" is not an option - try again.
@@ -56,15 +59,15 @@ call :launchmap
 pause
 goto menu
 
-:: =========================== LAUNCH CAMERA ==========================
+:: =========================== LAUNCH WEBCAM ==========================
 :camera
 color 0A
 cls
 echo.
-echo    ----------------------  AI  CAMERA  ----------------------
+echo    ----------------------  WEBCAM  ----------------------
 echo.
-echo     ^>^>  Starting the AI camera...
-start /min "SentinelAI Camera" cmd /c "python test_camera.py || pause"
+echo     ^>^>  Starting the laptop webcam...
+start /min "SentinelAI Webcam" cmd /c "python test_camera.py || pause"
 echo.
 echo     OK  A camera window will appear in a few seconds.
 echo.
@@ -73,6 +76,31 @@ echo            q  =  quit            a  =  knife all-angle mode
 echo            or simply click the window's X to close the system
 echo.
 echo         First-ever run downloads the AI model, about 22 MB.
+echo.
+pause
+goto menu
+
+:: ========================= LAUNCH CCTV (RTSP) =======================
+:cctv
+color 0A
+cls
+echo.
+echo    --------------------  CCTV  CAMERA  (RTSP)  --------------------
+echo.
+echo     This connects to a TP-Link Tapo / RTSP IP camera over the network.
+echo.
+echo     BEFORE it can connect, the camera's address must be set in the
+echo     file  test_rtsp.py  (line with RTSP_URL), in this format:
+echo         rtsp://USERNAME:PASSWORD@CAMERA_IP:554/stream2
+echo.
+echo     The camera and THIS laptop must be on the SAME Wi-Fi network.
+echo     Tip: test the URL in VLC first to confirm it works.
+echo.
+echo     ^>^>  Starting the CCTV detector...
+start /min "SentinelAI CCTV" cmd /c "python test_rtsp.py || pause"
+echo.
+echo     OK  A camera window will appear once it connects.
+echo         q  =  quit          (if it can't connect, its window shows why)
 echo.
 pause
 goto menu
@@ -160,7 +188,7 @@ echo    =======================================================
 echo       SETUP COMPLETE      total time: !mins!m !secs!s
 echo    =======================================================
 echo.
-echo       Pick [1], [2] or [3] from the menu to launch.
+echo       Pick [1] map, [2] webcam, [3] CCTV, or [4] full demo to launch.
 echo.
 pause
 goto menu
