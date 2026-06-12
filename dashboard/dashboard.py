@@ -86,6 +86,8 @@ def _palette():
             "pill_on_bg": "#1d3a26", "pill_on_fg": "#9fdfae",
             # paper texture overlay (darkens the texture to near-black)
             "paper_overlay": "rgba(8,9,11,0.92)",
+            # body text for Streamlit's own widgets (metrics, labels, markdown)
+            "body_text": "#e8eaf0",
         }
     return {
         "page_bg": "#ffffff", "header_text": "#1e293b",
@@ -101,6 +103,8 @@ def _palette():
         "pill_on_bg": "#E6F6EB", "pill_on_fg": "#1F7A3D",
         # paper texture overlay (soft lift so widgets stay readable)
         "paper_overlay": "rgba(255,255,255,0.30)",
+        # body text for Streamlit's own widgets (metrics, labels, markdown)
+        "body_text": "#1a1a1a",
     }
 
 
@@ -349,6 +353,18 @@ def _inject_kino_and_theme():
     .sai-pill-off .sai-dot { background:#E24B4A; }
     .sai-pill-on  .sai-dot { background:#2EBD59; }
     .sai-ts { font-size:12px !important; color:__HDRSUB__; }
+    /* Streamlit's own textColor doesn't switch at runtime, so force it here.
+       Scoped to Streamlit text surfaces — the .ev-* and .sai-* components keep
+       their own colors because those rules target the element directly. */
+    [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] *,
+    [data-testid="stMetricValue"], [data-testid="stMetricDelta"] *,
+    [data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] *,
+    [data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li,
+    [data-testid="stMarkdownContainer"] h1, [data-testid="stMarkdownContainer"] h2,
+    [data-testid="stMarkdownContainer"] h3, [data-testid="stMarkdownContainer"] h4,
+    [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] * {
+        color: __BODYTEXT__ !important;
+    }
     .main-header { color:__HEADERTEXT__; }
     .alert-critical { background:__CRITBG__; }
     .alert-high { background:__HIGHBG__; }
@@ -369,6 +385,7 @@ def _inject_kino_and_theme():
     .replace("__PILLOFFFG__", p["pill_off_fg"])
     .replace("__PILLONBG__", p["pill_on_bg"])
     .replace("__PILLONFG__", p["pill_on_fg"])
+    .replace("__BODYTEXT__", p["body_text"])
     .replace("__PAGEBG__", p["page_bg"])
     .replace("__HEADERTEXT__", p["header_text"])
     .replace("__CRITBG__", p["crit_bg"])
