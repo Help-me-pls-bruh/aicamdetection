@@ -62,6 +62,11 @@ def _theme_is_dark():
 
 def _on_theme_toggle():
     st.session_state["theme_dark"] = st.session_state["dark_mode_widget"]
+    # Apply the Streamlit theme config HERE, inside the callback: callbacks run
+    # before the rerun starts, so the very next render already carries the new
+    # theme — no extra st.rerun() (which dropped widget state and caused the
+    # toggle to bounce back).
+    _sync_streamlit_theme()
 
 
 def _palette():
@@ -74,6 +79,13 @@ def _palette():
             "card_border": "#475569", "card_high": "#1c0810",
             "card_med": "#1c1305", "ev_type": "#f1f5f9",
             "ev_meta": "#94a3b8", "shadow": "rgba(0,0,0,0.5)",
+            # frameless header
+            "hdr_fg": "#f2f3f5", "hdr_sub": "#8b929e",
+            "hdr_border": "rgba(255,255,255,0.14)",
+            "pill_off_bg": "#4a2222", "pill_off_fg": "#f0a0a0",
+            "pill_on_bg": "#1d3a26", "pill_on_fg": "#9fdfae",
+            # paper texture overlay (darkens the texture to near-black)
+            "paper_overlay": "rgba(8,9,11,0.92)",
         }
     return {
         "page_bg": "#ffffff", "header_text": "#1e293b",
@@ -82,6 +94,13 @@ def _palette():
         "card_border": "#94a3b8", "card_high": "#fff1f4",
         "card_med": "#fffaf0", "ev_type": "#0f172a",
         "ev_meta": "#64748b", "shadow": "rgba(15,23,42,0.06)",
+        # frameless header
+        "hdr_fg": "#1a1a1a", "hdr_sub": "#6b7280",
+        "hdr_border": "rgba(0,0,0,0.12)",
+        "pill_off_bg": "#FCEBEB", "pill_off_fg": "#A32D2D",
+        "pill_on_bg": "#E6F6EB", "pill_on_fg": "#1F7A3D",
+        # paper texture overlay (soft lift so widgets stay readable)
+        "paper_overlay": "rgba(255,255,255,0.30)",
     }
 
 
@@ -90,8 +109,62 @@ def _map_style():
     return "carto-darkmatter" if _theme_is_dark() else "carto-positron"
 
 
+@st.cache_data(show_spinner=False)
+def _paper_texture_url():
+    """
+    Crumpled-paper texture for the page background.
+    Prefers a real photo at assets/paper.jpg; otherwise falls back to a
+    procedural SVG (fractal noise + diffuse lighting = paper creases).
+    """
+    photo = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "assets", "paper.jpg"
+    )
+    if os.path.exists(photo):
+        with open(photo, "rb") as fh:
+            b64 = base64.b64encode(fh.read()).decode()
+        return f"data:image/jpeg;base64,{b64}"
+
+    svg = (
+        "<svg xmlns='http://www.w3.org/2000/svg' width='700' height='700'>"
+        "<filter id='p'>"
+        "<feTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='5' seed='7'/>"
+        "<feDiffuseLighting lighting-color='#ffffff' surfaceScale='2.4'>"
+        "<feDistantLight azimuth='45' elevation='61'/>"
+        "</feDiffuseLighting>"
+        "</filter>"
+        "<rect width='100%' height='100%' filter='url(#p)'/>"
+        "</svg>"
+    )
+    return "data:image/svg+xml;utf8," + svg.replace("#", "%23").replace("'", "%27")
+
+
+def _hex_logo_svg(size=34):
+    """Outlined hexagon mark (echoes the H3 risk grid): outer hex, nested hex
+    at 50% opacity, filled centre dot — all in the red accent."""
+    return (
+        f'<svg width="{size}" height="{size}" viewBox="0 0 100 100" fill="none" '
+        f'xmlns="http://www.w3.org/2000/svg" style="flex:none;">'
+        f'<polygon points="50,7 87,28.5 87,71.5 50,93 13,71.5 13,28.5" '
+        f'stroke="#E24B4A" stroke-width="4.5" fill="none" stroke-linejoin="round"/>'
+        f'<polygon points="50,27 69.5,38.5 69.5,61.5 50,73 30.5,61.5 30.5,38.5" '
+        f'stroke="#E24B4A" stroke-width="3" fill="none" opacity="0.5" '
+        f'stroke-linejoin="round"/>'
+        f'<circle cx="50" cy="50" r="7" fill="#E24B4A"/>'
+        f"</svg>"
+    )
+
+
+def _status_pill(online):
+    """Reusable status pill: green 'Online' / red 'Offline', theme-aware."""
+    cls = "sai-pill-on" if online else "sai-pill-off"
+    label = "Online" if online else "Offline"
+    return f'<span class="sai-pill {cls}"><span class="sai-dot"></span>{label}</span>'
+
+
 def _sync_streamlit_theme():
-    """Make Streamlit's built-in theme (widgets, tabs, metrics) follow the toggle."""
+    """Make Streamlit's built-in theme (widgets, tabs, metrics) follow the toggle.
+    Pure config sync — never triggers a rerun (a mid-run rerun would drop the
+    not-yet-rendered toggle widget's state and bounce the theme back)."""
     dark = _theme_is_dark()
     want = {
         "theme.base": "dark" if dark else "light",
@@ -99,17 +172,13 @@ def _sync_streamlit_theme():
         "theme.secondaryBackgroundColor": "#0a0c10" if dark else "#f3f5f8",
         "theme.textColor": "#e8eaf0" if dark else "#0f172a",
     }
-    changed = False
     try:
         from streamlit import config as _config
         for key, val in want.items():
             if _config.get_option(key) != val:
                 _config.set_option(key, val)
-                changed = True
     except Exception:
-        return
-    if changed:
-        st.rerun()
+        pass
 
 st.markdown("""
 <style>
@@ -229,18 +298,8 @@ def _inject_kino_and_theme():
                 " format('truetype');font-display:swap;}").replace("__B64__", b64)
 
     css = face + """
-    h1, h2, h3, .brand-title { font-family:'Kino', Georgia, serif !important;
+    h1, h2, h3 { font-family:'Kino', Georgia, serif !important;
         letter-spacing:0.5px; }
-    .brand-bar { background:linear-gradient(120deg,#0b1f3a 0%,#13315c 60%,#1d4e89 100%);
-        border-radius:16px; padding:1.1rem 1.6rem; margin-bottom:0.4rem;
-        display:flex; align-items:center; justify-content:space-between;
-        box-shadow:0 6px 20px rgba(11,31,58,0.25); }
-    .brand-title { color:#ffffff !important; font-size:3rem !important; margin:0;
-        line-height:1.05; }
-    .brand-sub { color:#9ec1ff !important; font-size:0.95rem !important;
-        letter-spacing:3px; text-transform:uppercase; margin-top:0.3rem; }
-    .brand-right { text-align:right; color:#cfe0ff !important;
-        font-size:0.95rem !important; line-height:1.6; }
     .live-dot { display:inline-block; width:11px; height:11px; border-radius:50%;
         background:#e11d48; margin-right:7px;
         box-shadow:0 0 0 0 rgba(225,29,72,0.7); animation:pulse 1.4s infinite; }
@@ -264,7 +323,32 @@ def _inject_kino_and_theme():
     # Theme-dependent colors (override the defaults above per light/dark toggle)
     p = _palette()
     themed = ("""
-    .stApp { background:__PAGEBG__ !important; }
+    .stApp {
+        background: linear-gradient(__PAPEROVERLAY__, __PAPEROVERLAY__),
+                    url("__PAPERURL__") __PAGEBG__ !important;
+        background-size: cover !important;
+        background-attachment: fixed !important;
+    }
+    .sai-header { display:flex; align-items:center; justify-content:space-between;
+        padding:10px 20px 14px 20px; background:transparent;
+        border-bottom:0.5px solid __HDRBORDER__; margin-bottom:0.3rem; }
+    .sai-left { display:flex; align-items:center; gap:14px; }
+    .sai-wordmark { font-weight:700; font-size:24px !important;
+        letter-spacing:0.04em; color:__HDRFG__; line-height:1.15;
+        text-transform:uppercase; }
+    .sai-subtitle { font-size:12px !important; font-weight:500;
+        letter-spacing:0.12em; color:__HDRSUB__; text-transform:uppercase;
+        margin-top:2px; }
+    .sai-right { display:flex; align-items:center; gap:12px; }
+    .sai-pill { display:inline-flex; align-items:center; gap:7px;
+        font-size:13px !important; font-weight:500; border-radius:8px;
+        padding:5px 12px; }
+    .sai-pill-off { background:__PILLOFFBG__; color:__PILLOFFFG__; }
+    .sai-pill-on  { background:__PILLONBG__;  color:__PILLONFG__; }
+    .sai-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+    .sai-pill-off .sai-dot { background:#E24B4A; }
+    .sai-pill-on  .sai-dot { background:#2EBD59; }
+    .sai-ts { font-size:12px !important; color:__HDRSUB__; }
     .main-header { color:__HEADERTEXT__; }
     .alert-critical { background:__CRITBG__; }
     .alert-high { background:__HIGHBG__; }
@@ -276,6 +360,15 @@ def _inject_kino_and_theme():
     .ev-type { color:__EVTYPE__; }
     .ev-meta { color:__EVMETA__; }
     """
+    .replace("__PAPEROVERLAY__", p["paper_overlay"])
+    .replace("__PAPERURL__", _paper_texture_url())
+    .replace("__HDRBORDER__", p["hdr_border"])
+    .replace("__HDRFG__", p["hdr_fg"])
+    .replace("__HDRSUB__", p["hdr_sub"])
+    .replace("__PILLOFFBG__", p["pill_off_bg"])
+    .replace("__PILLOFFFG__", p["pill_off_fg"])
+    .replace("__PILLONBG__", p["pill_on_bg"])
+    .replace("__PILLONFG__", p["pill_on_fg"])
     .replace("__PAGEBG__", p["page_bg"])
     .replace("__HEADERTEXT__", p["header_text"])
     .replace("__CRITBG__", p["crit_bg"])
@@ -313,18 +406,16 @@ def api_post(endpoint, data=None):
 
 
 def render_header():
-    status = api_get("/status")
-    if status:
-        right = (f'<span class="live-dot"></span>SYSTEM ONLINE &middot; '
-                 f'{status.get("zones_loaded", 0):,} zones')
-    else:
-        right = 'API OFFLINE — run <code>python run.py</code>'
+    online = api_get("/status") is not None
+    ts = datetime.now().strftime("%a %d %b &middot; %H:%M")
     st.markdown(
-        '<div class="brand-bar">'
-        '<div><div class="brand-title">SENTINEL AI</div>'
-        '<div class="brand-sub">Crime Prevention &amp; Response Platform</div></div>'
-        f'<div class="brand-right">{right}<br>'
-        f'{datetime.now().strftime("%a %d %b %Y &middot; %H:%M:%S")}</div>'
+        '<div class="sai-header">'
+        f'<div class="sai-left">{_hex_logo_svg(34)}'
+        '<div><div class="sai-wordmark">SENTINEL AI</div>'
+        '<div class="sai-subtitle">CRIME PREVENTION &amp; RESPONSE PLATFORM</div>'
+        '</div></div>'
+        f'<div class="sai-right">{_status_pill(online)}'
+        f'<span class="sai-ts">{ts}</span></div>'
         '</div>', unsafe_allow_html=True)
 
 
@@ -1058,7 +1149,6 @@ def main():
                   on_change=_on_theme_toggle,
                   help="Dark = pure-black OLED look. Off = bright light mode.")
     render_header()
-    st.markdown("---")
     render_metrics()
     st.markdown("---")
 
