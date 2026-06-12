@@ -9,6 +9,7 @@ import os
 import time
 import base64
 import random
+import hashlib
 import requests
 import pandas as pd
 import plotly.express as px
@@ -494,26 +495,46 @@ def get_kl_hex_grid(res=HEX_RES):
     return cells
 
 
+# Hotspot counts are fixed so the map keeps a stable, credible shape instead of
+# reshuffling wildly on every refresh.
+N_HIGH_CELLS = 3
+N_MED_CELLS = 5
+
+
+def _cell_base(cell_id):
+    """Stable 0-1 value derived from the cell id, so a given hexagon keeps the
+    same baseline risk across refreshes (its identity doesn't jump around)."""
+    h = hashlib.md5(cell_id.encode()).hexdigest()
+    return int(h[:8], 16) / 0xFFFFFFFF
+
+
 def assign_demo_risk(cell_ids):
     """
-    Fast random scoring with a CONTROLLED distribution so it looks realistic:
-      - 2-4 HIGH zones (red, rare)
-      - 3-5 MEDIUM zones (amber)
-      - everything else SAFE (green)
-    Re-rolled on every refresh, so the map changes continuously.
+    Per-cell risk that is STABLE in identity but gently LIVE in value:
+      - the same few cells stay HIGH / MEDIUM across refreshes (ranked by a hash
+        of the cell id), so the map doesn't reshuffle like crazy
+      - each cell's numeric score drifts only a few % each refresh, so the
+        dashboard still feels live without jumping around
+    Returns (levels, scores, n_high, n_med).
     """
     cells = list(cell_ids)
-    random.shuffle(cells)
-    levels = {}
-    n_high = random.randint(2, 4)
-    n_med = random.randint(3, 5)
-    for c in cells[:n_high]:
-        levels[c] = "HIGH"
-    for c in cells[n_high:n_high + n_med]:
-        levels[c] = "MEDIUM"
-    for c in cells[n_high + n_med:]:
-        levels[c] = "SAFE"
-    return levels, n_high, n_med
+    ranked = sorted(cells, key=_cell_base, reverse=True)
+    high_set = set(ranked[:N_HIGH_CELLS])
+    med_set = set(ranked[N_HIGH_CELLS:N_HIGH_CELLS + N_MED_CELLS])
+
+    levels, scores = {}, {}
+    for c in cells:
+        drift = (random.random() - 0.5) * 0.06   # +/- 0.03 gentle wobble
+        if c in high_set:
+            levels[c] = "HIGH"
+            scores[c] = round(min(0.97, 0.88 + drift), 3)
+        elif c in med_set:
+            levels[c] = "MEDIUM"
+            scores[c] = round(0.55 + drift, 3)
+        else:
+            levels[c] = "SAFE"
+            scores[c] = round(max(0.03, 0.08 + drift * 0.5), 3)
+    return levels, scores, N_HIGH_CELLS, N_MED_CELLS
 
 
 def _hex_geojson(grid, cell_ids):
@@ -561,7 +582,7 @@ def render_live_map_events():
     if not grid:
         st.info("Building hex grid...")
         return
-    levels, n_high, n_med = assign_demo_risk(list(grid.keys()))
+    levels, scores, n_high, n_med = assign_demo_risk(list(grid.keys()))
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Hexagons Monitored", f"{len(grid):,}")
@@ -579,20 +600,29 @@ def render_live_map_events():
             '<span><span class="sw" style="background:#e11d48"></span>High Risk</span>'
             '</div>', unsafe_allow_html=True)
         cell_ids = list(grid.keys())
-        z = [DEMO_LEVELS[levels[c]]["z"] for c in cell_ids]
+        z = [scores[c] for c in cell_ids]
+        # hover details per cell: risk level, score %, short H3 id
+        customdata = [[levels[c], f"{scores[c] * 100:.0f}", c[:10]]
+                      for c in cell_ids]
         colorscale = [[0.0, "#1e9e57"], [0.25, "#3fb16b"], [0.44, "#f5a524"],
                       [0.6, "#f08a1d"], [0.8, "#e11d48"], [1.0, "#b00d36"]]
         fig = go.Figure(go.Choroplethmapbox(
             geojson=_hex_geojson(grid, cell_ids),
             locations=cell_ids, z=z, featureidkey="id",
             colorscale=colorscale, zmin=0, zmax=1,
-            marker_opacity=0.55, marker_line_width=0.6,
-            marker_line_color="#5b6b85", showscale=False, hoverinfo="skip",
+            marker_opacity=0.6, marker_line_width=0.6,
+            marker_line_color="#5b6b85", showscale=False,
+            customdata=customdata,
+            hovertemplate=("<b>%{customdata[0]} RISK</b><br>"
+                           "Risk score: %{customdata[1]}%<br>"
+                           "H3 cell: %{customdata[2]}<extra></extra>"),
         ))
         fig.update_layout(
             mapbox_style=_map_style(), mapbox_zoom=11.2,
             mapbox_center={"lat": 3.150, "lon": 101.690},
             height=600, margin=dict(l=0, r=0, t=0, b=0),
+            hoverlabel=dict(bgcolor="#0f172a", font_size=13,
+                            font_color="#f1f5f9"),
         )
         st.plotly_chart(fig, use_container_width=True)
 
