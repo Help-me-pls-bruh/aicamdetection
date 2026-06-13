@@ -34,3 +34,7 @@ tf-keras                 # required by recent deepface
 # ---- KNIFE TRAINING (only needed to TRAIN the knife model) ----
 # Not needed just to run the app. Used by training/ scripts + Colab guide.
 roboflow                 # download a public knife dataset for fine-tuning
+
+# ---- RESEARCH FIGURES (only needed to regenerate the poster graphs) ----
+# Not needed to run the app. Used by research/generate_figures.py.
+matplotlib>=3.7.0        # publication-quality figures for the ISEF poster
